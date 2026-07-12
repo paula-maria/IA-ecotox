@@ -4,8 +4,6 @@
 
 Este projeto tem como objetivo prever a **ecotoxicidade** (inibição do crescimento de algas) de ativos amazônicos e, futuramente, de formulações cosméticas, utilizando modelos **QSAR (Quantitative Structure–Activity Relationship)** baseados em descritores moleculares.
 
-O trabalho faz parte do **TCC/PJC 2026 da Universidade Federal do Amapá (UNIFAP)** e foi desenvolvido em Python.
-
 ---
 
 # Visão Geral da Arquitetura
