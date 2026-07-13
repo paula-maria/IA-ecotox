@@ -73,6 +73,8 @@ Construir um modelo QSAR utilizando dados públicos da **ECOTOX Knowledgebase (U
 
 ### Funcionamento do Random Forest Regressor
 
+![Diagrama de funcionamento do Random Forest Regressor para predição QSAR de ecotoxicidade](/home/paula/.gemini/antigravity-ide/brain/9c0943d7-ab88-45bf-9400-b187ec99615c/random_forest_qsar_diagram.png)
+
 O **Random Forest Regressor** é um algoritmo de aprendizado de máquina supervisionado baseado no princípio de métodos ensemble (*ensemble learning*), que constrói e combina previsões de múltiplas árvores de decisão. O processo de funcionamento do algoritmo é descrito pelas seguintes etapas:
 
 1. **Amostragem com Reposição (Bootstrap):**
