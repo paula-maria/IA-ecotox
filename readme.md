@@ -244,6 +244,17 @@ O modelo preditivo de ecotoxicidade é treinado e configurado utilizando as segu
 5. **Modelo Final para Produção:**
    * Após a avaliação na validação cruzada, o modelo de regressão final é treinado com **100% dos dados filtrados da base ECOTOX**, sendo então congelado para servir de preditor externo dos novos compostos amazônicos.
 
+## Por que usar Random Forest?
+
+A escolha do **Random Forest** como modelo principal de regressão para este pipeline QSAR baseia-se em fatores técnicos e científicos essenciais:
+
+*   **Robustez a ruídos e outliers:** Dados biológicos de ecotoxicidade pública (ECOTOX) são provenientes de múltiplos estudos científicos independentes, contendo inevitavelmente ruído experimental e outliers. O Random Forest é intrinsecamente resiliente a esses fatores por realizar a média das predições de um conjunto (*ensemble*) de árvores de decisão.
+*   **Captura de não linearidades e interações:** A resposta ecotoxicológica (pEC50) não possui relação puramente linear com os descritores químicos. O algoritmo consegue capturar relações não lineares de alta ordem e interações complexas entre múltiplos descritores de forma nativa, sem necessidade de transformação prévia de variáveis.
+*   **Resistência à multicolinearidade:** Os descritores químicos calculados (como peso molecular, LogP e área polar) tendem a ser muito correlacionados. O Random Forest seleciona aleatoriamente subconjuntos de atributos em cada nó da árvore de decisão, mitigando os efeitos negativos da correlação entre as variáveis.
+*   **Prevenção contra overfitting:** A técnica de *bootstrap aggregating* (bagging) aliada à seleção aleatória de atributos diminui a variância geral do modelo. Isso evita a memorização do conjunto de treinamento e propicia alta capacidade de generalização para os novos compostos (validação externa).
+*   **Independência de escalas:** Diferente de algoritmos como regressão linear regularizada, redes neurais ou SVM, as árvores de decisão não são afetadas pela escala dos dados. Isso dispensa etapas complexas de padronização/normalização de descritores com grandezas muito diferentes (ex. Peso Molecular versus LogP).
+*   **Importância das variáveis:** O modelo permite extrair a importância relativa de cada descritor molecular para as previsões de ecotoxicidade, viabilizando uma análise interpretável e validação química mecanística do modelo.
+
 ---
 
 # Consultas ao PubChem

@@ -71,6 +71,26 @@ Construir um modelo QSAR utilizando dados públicos da **ECOTOX Knowledgebase (U
 | Modelo | Random Forest |
 | Validação | Cross Validation (k = 5) |
 
+### Funcionamento do Random Forest Regressor
+
+O **Random Forest Regressor** é um algoritmo de aprendizado de máquina supervisionado baseado no princípio de métodos ensemble (*ensemble learning*), que constrói e combina previsões de múltiplas árvores de decisão. O processo de funcionamento do algoritmo é descrito pelas seguintes etapas:
+
+1. **Amostragem com Reposição (Bootstrap):**
+   * A partir da base filtrada do ECOTOX contendo $N$ amostras, o algoritmo gera subconjuntos de dados aleatórios e com reposição (*bootstrap samples*). Cada árvore de decisão individual é treinada em um desses subconjuntos. Isso significa que uma mesma amostra pode ser usada múltiplas vezes para treinar uma árvore, enquanto outras não são utilizadas nessa árvore específica.
+
+2. **Construção de Árvores de Decisão Descorrelacionadas:**
+   * Uma árvore de regressão tenta subdividir o espaço de dados em regiões homogêneas em relação à variável-resposta ($pEC50$).
+   * **Subespaço Aleatório (Feature Randomness):** Em cada nó da árvore, em vez de avaliar todos os descritores moleculares para decidir onde dividir os dados, o algoritmo sorteia aleatoriamente um subconjunto dos descritores disponíveis. A árvore escolhe o melhor divisor somente a partir desse subconjunto sorteado, o que diminui a correlação entre as árvores criadas e aumenta a diversidade do modelo.
+
+3. **Predição por Agregação (Bagging):**
+   * Uma vez treinadas as 300 árvores independentes (configuradas via `n_estimators=300`), o modelo final calcula a predição para um novo composto químico.
+   * Cada árvore percorre seus nós de decisão até estimar um valor de $pEC50$ específico. A predição final do Random Forest é a **média aritmética simples** das estimativas de todas as 300 árvores individuais:
+     $$\hat{y} = \frac{1}{B} \sum_{b=1}^{B} f_b(x)$$
+     onde $B$ é o número de árvores e $f_b(x)$ é a predição da árvore $b$. Este processo reduz significativamente a variância geral sem elevar o viés do modelo.
+
+4. **Importância dos Descritores (MDI):**
+   * O algoritmo rastreia o quanto cada descritor molecular reduz a impureza dos nós (neste caso, a variância dos erros de regressão) ao longo de todas as árvores em que é selecionado. A média ponderada dessas reduções fornece a importância relativa de cada característica na tomada de decisão final do modelo.
+
 ---
 
 ## Fluxo
