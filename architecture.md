@@ -93,6 +93,21 @@ O **Random Forest Regressor** é um algoritmo de aprendizado de máquina supervi
 4. **Importância dos Descritores (MDI):**
    * O algoritmo rastreia o quanto cada descritor molecular reduz a impureza dos nós (neste caso, a variância dos erros de regressão) ao longo de todas as árvores em que é selecionado. A média ponderada dessas reduções fornece a importância relativa de cada característica na tomada de decisão final do modelo.
 
+### Respaldo científico e posicionamento do projeto
+
+**Ferro (2025)** — *Aprendizado de Máquina para predição de crescimento de Chlorella vulgaris* (UFAL, 2025) — comparou Random Forest, SVR e redes neurais para a mesma espécie biológica (*C. vulgaris*) e identificou o Random Forest como o algoritmo de melhor desempenho, com validação cruzada. Isso fornece respaldo nacional e recente para a escolha metodológica deste projeto.
+
+A distinção entre as abordagens é fundamental:
+
+| Aspecto | Ferro (UFAL, 2025) | Este projeto (PJC 2026) |
+|---|---|---|
+| **Objetivo** | Predizer crescimento/produção da alga | Predizer toxicidade de ingredientes sobre a alga |
+| **Variáveis de entrada** | Nutrientes, intensidade luminosa, tempo | Descritores moleculares QSAR |
+| **Contexto** | Cultivo biotecnológico | Avaliação ecotoxicológica |
+| **Aplicação** | Biorefinaria | Segurança cosmética ambiental |
+
+As abordagens são **complementares, não concorrentes**: a de Ferro valida a escolha do algoritmo para *C. vulgaris*; este projeto aplica essa metodologia a uma pergunta científica inédita — predição de ecotoxicidade de ingredientes cosméticos via descritores moleculares QSAR.
+
 ---
 
 ## Fluxo
@@ -305,12 +320,12 @@ architecture.md
 
 | Arquivo | Responsabilidade |
 |----------|------------------|
-| `main.py` | Ponto de entrada da aplicação (`dados` ou `publico`). |
+| `main.py` | Ponto de entrada da aplicação (`dados`, `publico` ou `validar`). |
 | `descritores.py` | Cálculo dos descritores moleculares utilizando RDKit. |
-| `dados.py` | Processamento da planilha experimental, normalização dos dados e implementação inicial do descritor de mistura. |
+| `dados.py` | Processamento da planilha experimental e normalização dos dados. |
 | `ecotox.py` | Preparação da base pública ECOTOX, filtragem dos dados e obtenção de SMILES via PubChem. |
-| `modelo.py` | Ajuste de curvas dose–resposta, treinamento do modelo QSAR, validação cruzada e validação externa. |
-| `validacao.py` | Avaliação da qualidade dos dados, Y-scrambling, domínio de aplicabilidade (Leverage) e matriz de confusão das categorias GHS. |
+| `modelo.py` | Treinamento do modelo QSAR (Random Forest), validação cruzada e validação externa com os dados amazônicos. |
+| `validacao.py` | Avaliação da qualidade dos dados, Y-scrambling, domínio de aplicabilidade (leverage) e matriz de confusão das categorias GHS. |
 
 Cada módulo possui uma responsabilidade específica, seguindo o princípio de **responsabilidade única**. A organização é feita por função (descritores, dados, modelagem e validação), e não pelas fases do projeto, permitindo o reaproveitamento de componentes como `descritores.py` em diferentes etapas do pipeline.
 
