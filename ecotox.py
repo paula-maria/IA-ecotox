@@ -31,19 +31,48 @@ ENDPOINTS_CRESCIMENTO = ["EC50", "IC50", "NOEC", "LOEC"]
 
 def carregar_ecotox_algas(diretorio: Path = ECOTOX_DIR,
                            especie: str = ESPECIE_ALVO) -> pd.DataFrame:
-    tests = pd.read_csv(diretorio / "tests.txt", sep="|", low_memory=False,
-                         encoding="latin1", on_bad_lines="skip")
-    results = pd.read_csv(diretorio / "results.txt", sep="|", low_memory=False,
-                           encoding="latin1", on_bad_lines="skip")
-    species = pd.read_csv(diretorio / "species.txt", sep="|", low_memory=False,
-                           encoding="latin1", on_bad_lines="skip")
+    path_tests = diretorio / "tests.txt"
+    path_results = diretorio / "results.txt"
+    path_species = diretorio / "species.txt"
 
-    for df in (tests, results, species):
-        df.columns = [c.strip().lower() for c in df.columns]
+    if not path_tests.exists():
+        candidatos = list(diretorio.glob("**/tests.txt"))
+        if candidatos:
+            path_tests = candidatos[0]
+            base_dir = path_tests.parent
+            path_results = base_dir / "results.txt"
+            path_species = base_dir / "species.txt"
+            if not path_species.exists():
+                candidatos_species = list(base_dir.glob("**/species.txt"))
+                if candidatos_species:
+                    path_species = candidatos_species[0]
+                else:
+                    candidatos_species = list(diretorio.glob("**/species.txt"))
+                    if candidatos_species:
+                        path_species = candidatos_species[0]
+        else:
+            raise FileNotFoundError(f"Não foi possível encontrar tests.txt dentro de {diretorio}")
+
+    if not path_results.exists():
+        raise FileNotFoundError(f"Não foi possível encontrar results.txt (procurado em {path_results})")
+    if not path_species.exists():
+        raise FileNotFoundError(f"Não foi possível encontrar species.txt (procurado em {path_species})")
+
+    # Carrega species.txt filtrando apenas colunas necessárias
+    species = pd.read_csv(path_species, sep="|",
+                          usecols=lambda c: c.strip().lower() in ["species_number", "latin_name"],
+                          low_memory=False, encoding="latin1", on_bad_lines="skip")
+    species.columns = [c.strip().lower() for c in species.columns]
 
     species_alga = species[species["latin_name"].str.strip().str.lower()
                             == especie.lower()]
     origem_filtro = f"espécie exata ({especie})"
+
+    # Carrega tests.txt filtrando apenas colunas necessárias
+    tests = pd.read_csv(path_tests, sep="|",
+                        usecols=lambda c: c.strip().lower() in ["test_id", "test_cas", "species_number"],
+                        low_memory=False, encoding="latin1", on_bad_lines="skip")
+    tests.columns = [c.strip().lower() for c in tests.columns]
 
     if len(species_alga) == 0 or len(tests.merge(
             species_alga, on="species_number", how="inner")) < LIMIAR_MINIMO_REGISTROS:
@@ -58,6 +87,13 @@ def carregar_ecotox_algas(diretorio: Path = ECOTOX_DIR,
           f"{len(species_alga)} espécie(s) encontrada(s).")
 
     df = tests.merge(species_alga, on="species_number", how="inner")
+
+    # Carrega results.txt filtrando apenas colunas necessárias
+    results = pd.read_csv(path_results, sep="|",
+                          usecols=lambda c: c.strip().lower() in ["result_id", "test_id", "endpoint", "effect", "conc1_mean", "conc1_unit"],
+                          low_memory=False, encoding="latin1", on_bad_lines="skip")
+    results.columns = [c.strip().lower() for c in results.columns]
+
     df = df.merge(results, on="test_id", how="inner")
     df = df[df["endpoint"].isin(ENDPOINTS_CRESCIMENTO)]
 
@@ -92,9 +128,38 @@ def cas_para_smiles(cas: str, cache: dict) -> str | None:
 
 
 def anexar_smiles(df: pd.DataFrame) -> pd.DataFrame:
-    cache: dict[str, str | None] = {}
+    import json
+    cache_file = Path("pubchem_cache.json")
+    cache = {}
+    if cache_file.exists():
+        try:
+            with open(cache_file, "r") as f:
+                cache = json.load(f)
+        except Exception as e:
+            print(f"[AVISO] Erro ao ler cache do PubChem: {e}")
+
     df = df.copy()
-    df["smiles"] = df["test_cas"].apply(lambda c: cas_para_smiles(c, cache))
+    unique_cas = df["test_cas"].unique()
+    new_cas = [c for c in unique_cas if c not in cache]
+
+    if new_cas:
+        print(f"[INFO] Buscando SMILES para {len(new_cas)} novos CAS de {len(unique_cas)} no PubChem...")
+        resolved_count = 0
+        total_new = len(new_cas)
+        for c in new_cas:
+            cas_para_smiles(c, cache)
+            resolved_count += 1
+            if resolved_count % 50 == 0 or resolved_count == total_new:
+                print(f"  -> Progresso: {resolved_count}/{total_new} novos CAS consultados...")
+                try:
+                    with open(cache_file, "w") as f:
+                        json.dump(cache, f, indent=4)
+                except Exception:
+                    pass
+    else:
+        print(f"[INFO] Todos os {len(unique_cas)} CAS já estão no cache local ({cache_file.name}).")
+
+    df["smiles"] = df["test_cas"].map(cache)
     return df.dropna(subset=["smiles"])
 
 

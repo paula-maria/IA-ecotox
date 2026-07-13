@@ -219,6 +219,33 @@ Ao final da execução são apresentados:
 
 ---
 
+# Treinamento e Configuração do Modelo QSAR
+
+O modelo preditivo de ecotoxicidade é treinado e configurado utilizando as seguintes definições e etapas:
+
+1. **Algoritmo de Aprendizado:**
+   * Utiliza o **Random Forest Regressor** (`RandomForestRegressor` da biblioteca `scikit-learn`).
+   * Configurado com `n_estimators=300` (300 árvores de decisão) para obter estimativas estáveis de predição.
+   * Executa em paralelo utilizando todas as CPUs disponíveis (`n_jobs=-1`) para otimizar o tempo de processamento.
+   * Semente de aleatoriedade fixa (`random_state=42`) para garantir a reprodutibilidade dos resultados.
+
+2. **Conjunto de Entrada (Features):**
+   * Descritores moleculares gerados a partir do SMILES via **RDKit**: `MolWt` (Peso Molecular), `LogP` (lipofilicidade), `TPSA` (área polar), `NumHDonors`/`NumHAcceptors` (ligações de hidrogênio), `NumRotatableBonds` (flexibilidade molecular), `RingCount` e `AromaticRings` (quantidade de anéis).
+
+3. **Variável Alvo (Target):**
+   * Escala de pEC50, definida pela transformação:
+     $$pEC50 = -\log_{10}(EC50 \text{ molar em mol/L})$$
+     Isso padroniza os efeitos de toxicidade de compostos químicos independentemente de suas massas molares.
+
+4. **Validação Cruzada (Cross-Validation):**
+   * Validação cruzada do tipo **5-Fold Standard Cross-Validation** (divisão dos dados em 5 partes, onde o modelo é treinado em 4 e testado na parte restante, rotacionando até que todos os dados tenham sido testados).
+   * As métricas de avaliação calculadas são o Coeficiente de Determinação ($R^2$) e o Erro Quadrático Médio (RMSE) de validação cruzada.
+
+5. **Modelo Final para Produção:**
+   * Após a avaliação na validação cruzada, o modelo de regressão final é treinado com **100% dos dados filtrados da base ECOTOX**, sendo então congelado para servir de preditor externo dos novos compostos amazônicos.
+
+---
+
 # Consultas ao PubChem
 
 Durante a construção da base de treinamento, o módulo `ecotox.py` realiza consultas automáticas à API **PubChem PUG REST** para converter números CAS em estruturas SMILES.

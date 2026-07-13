@@ -9,6 +9,8 @@ manual do ECOTOX antes de rodar "publico").
 
 import sys
 
+import pandas as pd
+
 import dados
 import ecotox
 import modelo
@@ -64,6 +66,22 @@ def rodar_validacao(caminho_planilha: str = dados.ARQUIVO_PADRAO):
     leverage_df["Ingrediente"] = ingredientes["Ingrediente"].values
     print(f"h* (limite de corte) = {leverage_df.attrs['h_estrela']:.3f}")
     print(leverage_df[["Ingrediente", "leverage", "dentro_do_dominio"]])
+
+    print("\n=== Matriz de confusão (categorias GHS) ===")
+    # usa o mesmo esquema de validação cruzada 5-fold do treino público como
+    # 'previsto', comparado ao 'observado' real da base — dá uma view geral
+    # de acerto por categoria antes mesmo de aplicar aos dados amazônicos
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.model_selection import KFold, cross_val_predict
+    # n_jobs=-1: usa todas as CPUs disponíveis para paralelizar a validação cruzada
+    modelo_cv = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    pred_cv = cross_val_predict(modelo_cv, X, y, cv=kf)
+
+    df_matriz = validacao.matriz_confusao_toxicidade(y, pd.Series(pred_cv), matriz["MolWt"])
+    print(df_matriz)
+    caminho_png = validacao.plotar_matriz_confusao(df_matriz)
+    print(f"Matriz de confusão salva em: {caminho_png}")
 
 
 if __name__ == "__main__":

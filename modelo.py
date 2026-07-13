@@ -70,7 +70,8 @@ def treinar_modelo_publico(matriz: pd.DataFrame):
     colunas_x = [c for c in matriz.columns if c not in ("pEC50", "cas")]
     X, y = matriz[colunas_x], matriz["pEC50"]
 
-    modelo = RandomForestRegressor(n_estimators=300, random_state=42)
+    # n_jobs=-1: treina em paralelo usando todas as CPUs para agilizar o tempo de execução
+    modelo = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
     pred_cv = cross_val_predict(modelo, X, y, cv=kf)
 

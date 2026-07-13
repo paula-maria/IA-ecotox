@@ -14,7 +14,7 @@ função `importancia_descritores` do modelo.py já dá o ranking pra isso.
 
 import numpy as np
 import pandas as pd
-
+import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------------------------
 # A. QUALIDADE DOS DADOS
@@ -82,14 +82,16 @@ def teste_y_scrambling(X: pd.DataFrame, y: pd.Series, n_repeticoes: int = 30,
     rng = np.random.RandomState(random_state)
     kf = KFold(n_splits=5, shuffle=True, random_state=random_state)
 
-    modelo_real = RandomForestRegressor(n_estimators=300, random_state=random_state)
+    # n_jobs=-1: usa todos os núcleos de CPU disponíveis para paralelizar e acelerar o processamento
+    modelo_real = RandomForestRegressor(n_estimators=300, random_state=random_state, n_jobs=-1)
     pred_real = cross_val_predict(modelo_real, X, y, cv=kf)
     r2_real = r2_score(y, pred_real)
 
     r2_embaralhados = []
     for _ in range(n_repeticoes):
         y_embaralhado = y.sample(frac=1.0, random_state=rng.randint(0, 1_000_000)).reset_index(drop=True)
-        modelo_emb = RandomForestRegressor(n_estimators=300, random_state=random_state)
+        # n_jobs=-1: paraleliza o treino de cada repetição do embaralhado
+        modelo_emb = RandomForestRegressor(n_estimators=300, random_state=random_state, n_jobs=-1)
         pred_emb = cross_val_predict(modelo_emb, X, y_embaralhado, cv=kf)
         r2_embaralhados.append(r2_score(y_embaralhado, pred_emb))
 
@@ -130,3 +132,72 @@ def calcular_leverage(X_treino: pd.DataFrame, X_novo: pd.DataFrame) -> pd.DataFr
     resultado["dentro_do_dominio"] = resultado["leverage"] <= h_estrela
     resultado.attrs["h_estrela"] = h_estrela
     return resultado
+
+
+# ---------------------------------------------------------------------------
+# C. MATRIZ DE CONFUSÃO — pEC50 (contínuo) → categoria GHS → comparação visual
+# ---------------------------------------------------------------------------
+LABELS_GHS = ["Categoria 1 (≤1 mg/L)", "Categoria 2 (1–10 mg/L)",
+              "Categoria 3 (10–100 mg/L)", "Não classificado (>100 mg/L)"]
+
+
+def classificar_toxicidade_ghs(pEC50: float, mol_wt: float) -> str:
+    """Converte pEC50 (escala molar) de volta para mg/L usando o peso
+    molecular, e classifica pelas faixas de toxicidade aguda aquática do
+    GHS (Sistema Globalmente Harmonizado de classificação de produtos
+    químicos, ONU) — referencial reconhecido, não uma categorização ad hoc."""
+    ec50_molar = 10 ** (-pEC50)
+    ec50_mg_l = ec50_molar * mol_wt * 1000
+
+    if ec50_mg_l <= 1:
+        return LABELS_GHS[0]
+    elif ec50_mg_l <= 10:
+        return LABELS_GHS[1]
+    elif ec50_mg_l <= 100:
+        return LABELS_GHS[2]
+    return LABELS_GHS[3]
+
+
+def matriz_confusao_toxicidade(pEC50_observado: pd.Series, pEC50_previsto: pd.Series,
+                                mol_wt: pd.Series):
+    """Monta a matriz de confusão (observado × previsto) nas categorias
+    GHS. Retorna a matriz como DataFrame (fácil de imprimir/exportar) e os
+    rótulos usados. Requer scikit-learn."""
+    from sklearn.metrics import confusion_matrix
+
+    classes_obs = [classificar_toxicidade_ghs(p, m) for p, m in zip(pEC50_observado, mol_wt)]
+    classes_prev = [classificar_toxicidade_ghs(p, m) for p, m in zip(pEC50_previsto, mol_wt)]
+
+    matriz = confusion_matrix(classes_obs, classes_prev, labels=LABELS_GHS)
+    df_matriz = pd.DataFrame(matriz, index=LABELS_GHS, columns=LABELS_GHS)
+    df_matriz.index.name = "Observado"
+    df_matriz.columns.name = "Previsto"
+    return df_matriz
+
+
+def plotar_matriz_confusao(df_matriz: pd.DataFrame, caminho_saida: str = "matriz_confusao.png"):
+    """Gera um heatmap da matriz de confusão e salva como PNG."""
+   
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    im = ax.imshow(df_matriz.values, cmap="Blues")
+
+    ax.set_xticks(range(len(df_matriz.columns)))
+    ax.set_yticks(range(len(df_matriz.index)))
+    ax.set_xticklabels(df_matriz.columns, rotation=30, ha="right")
+    ax.set_yticklabels(df_matriz.index)
+    ax.set_xlabel("Previsto pelo modelo")
+    ax.set_ylabel("Observado (experimental)")
+    ax.set_title("Matriz de confusão — categorias de toxicidade (GHS)")
+
+    for i in range(df_matriz.shape[0]):
+        for j in range(df_matriz.shape[1]):
+            valor = df_matriz.values[i, j]
+            cor_texto = "white" if valor > df_matriz.values.max() / 2 else "black"
+            ax.text(j, i, str(valor), ha="center", va="center", color=cor_texto)
+
+    fig.colorbar(im, ax=ax, label="Nº de compostos")
+    fig.tight_layout()
+    fig.savefig(caminho_saida, dpi=150)
+    plt.close(fig)
+    return caminho_saida
