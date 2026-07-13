@@ -12,6 +12,7 @@ import sys
 import dados
 import ecotox
 import modelo
+import validacao
 
 
 def rodar_dados(caminho_planilha: str = dados.ARQUIVO_PADRAO):
@@ -29,8 +30,40 @@ def rodar_publico(caminho_planilha: str = dados.ARQUIVO_PADRAO):
 
     modelo_treinado, colunas_x = modelo.treinar_modelo_publico(matriz)
 
+    ranking = modelo.importancia_descritores(modelo_treinado, colunas_x)
+    print("\nDescritores que mais influenciam a toxicidade prevista:")
+    print(ranking)
+
     previsao = modelo.validar_externamente(modelo_treinado, colunas_x, caminho_planilha)
+    print("\nPrevisão para os ativos amazônicos:")
     print(previsao)
+
+
+def rodar_validacao(caminho_planilha: str = dados.ARQUIVO_PADRAO):
+    dados_ecotox = ecotox.carregar_ecotox_algas()
+    dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
+    matriz = ecotox.montar_matriz_treino(dados_ecotox)
+
+    relatorio_qualidade = validacao.checar_qualidade_dados(matriz)
+    validacao.imprimir_relatorio_qualidade(relatorio_qualidade)
+
+    colunas_x = [c for c in matriz.columns if c not in ("pEC50", "cas")]
+    X, y = matriz[colunas_x], matriz["pEC50"]
+
+    print("\n=== Y-scrambling (o modelo aprendeu sinal real?) ===")
+    resultado_scrambling = validacao.teste_y_scrambling(X, y)
+    print(resultado_scrambling)
+    if not resultado_scrambling["passou_no_teste"]:
+        print("[ATENÇÃO] R² real não se distanciou o suficiente do embaralhado "
+              "— revisar o modelo antes de reportar como preditivo.")
+
+    print("\n=== Domínio de aplicabilidade (ativos amazônicos) ===")
+    ingredientes = dados.carregar_descritores_ingredientes(caminho_planilha)
+    colunas_comuns = [c for c in colunas_x if c in ingredientes.columns]
+    leverage_df = validacao.calcular_leverage(X[colunas_comuns], ingredientes[colunas_comuns])
+    leverage_df["Ingrediente"] = ingredientes["Ingrediente"].values
+    print(f"h* (limite de corte) = {leverage_df.attrs['h_estrela']:.3f}")
+    print(leverage_df[["Ingrediente", "leverage", "dentro_do_dominio"]])
 
 
 if __name__ == "__main__":
@@ -40,5 +73,7 @@ if __name__ == "__main__":
         rodar_dados()
     elif comando == "publico":
         rodar_publico()
+    elif comando == "validar":
+        rodar_validacao()
     else:
-        print(f"Comando desconhecido: {comando!r}. Use 'dados' ou 'publico'.")
+        print(f"Comando desconhecido: {comando!r}. Use 'dados', 'publico' ou 'validar'.")

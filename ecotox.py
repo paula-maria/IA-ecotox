@@ -14,15 +14,23 @@ from descritores import calcular_descritores
 
 ECOTOX_DIR = Path("./ecotox_ascii")
 
-# Gêneros de alga mais usados em ensaios OECD 201 / ABNT NBR 12648 — ajuste
-# conforme a espécie que sua irmã realmente usa no laboratório.
+# Espécie exata usada no ensaio de laboratório (OECD TG 201) — sensibilidade
+# a um mesmo composto varia entre espécies, então o ideal é treinar só com
+# a espécie que ela realmente usa, não o gênero inteiro.
+ESPECIE_ALVO = "Chlorella vulgaris"
+
+# Fallback: se sobrarem poucos registros (ver LIMIAR_MINIMO_REGISTROS abaixo),
+# amplia para o gênero — documentar essa decisão explicitamente no texto do
+# TCC se isso acontecer, não deixar implícito.
 GENEROS_ALGA = ["Chlorella", "Raphidocelis", "Pseudokirchneriella",
                 "Scenedesmus", "Selenastrum", "Desmodesmus"]
+LIMIAR_MINIMO_REGISTROS = 20
 
 ENDPOINTS_CRESCIMENTO = ["EC50", "IC50", "NOEC", "LOEC"]
 
 
-def carregar_ecotox_algas(diretorio: Path = ECOTOX_DIR) -> pd.DataFrame:
+def carregar_ecotox_algas(diretorio: Path = ECOTOX_DIR,
+                           especie: str = ESPECIE_ALVO) -> pd.DataFrame:
     tests = pd.read_csv(diretorio / "tests.txt", sep="|", low_memory=False,
                          encoding="latin1", on_bad_lines="skip")
     results = pd.read_csv(diretorio / "results.txt", sep="|", low_memory=False,
@@ -33,9 +41,21 @@ def carregar_ecotox_algas(diretorio: Path = ECOTOX_DIR) -> pd.DataFrame:
     for df in (tests, results, species):
         df.columns = [c.strip().lower() for c in df.columns]
 
-    padrao_genero = "|".join(GENEROS_ALGA)
-    species_alga = species[species["latin_name"].str.contains(
-        padrao_genero, case=False, na=False)]
+    species_alga = species[species["latin_name"].str.strip().str.lower()
+                            == especie.lower()]
+    origem_filtro = f"espécie exata ({especie})"
+
+    if len(species_alga) == 0 or len(tests.merge(
+            species_alga, on="species_number", how="inner")) < LIMIAR_MINIMO_REGISTROS:
+        print(f"[AVISO] Poucos ou nenhum registro para '{especie}' isoladamente — "
+              f"ampliando para o gênero. Documentar essa decisão no TCC.")
+        padrao_genero = "|".join(GENEROS_ALGA)
+        species_alga = species[species["latin_name"].str.contains(
+            padrao_genero, case=False, na=False)]
+        origem_filtro = "gênero (fallback)"
+
+    print(f"[INFO] Filtro de espécie usado: {origem_filtro} — "
+          f"{len(species_alga)} espécie(s) encontrada(s).")
 
     df = tests.merge(species_alga, on="species_number", how="inner")
     df = df.merge(results, on="test_id", how="inner")

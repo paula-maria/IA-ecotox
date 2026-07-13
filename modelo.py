@@ -81,6 +81,20 @@ def treinar_modelo_publico(matriz: pd.DataFrame):
     return modelo, colunas_x
 
 
+def importancia_descritores(modelo, colunas_x: list[str]) -> pd.DataFrame:
+    """Ranking de quais descritores mais pesam na predição (passo 6 do
+    fluxo: 'quais descritores mais influenciam a toxicidade'). Depois de
+    rodar, checar se o descritor no topo faz sentido mecanisticamente
+    (ex.: LogP alto → mais toxicidade, por bioacumulação/permeação de
+    membrana) — se o mais importante não tiver relação plausível, é sinal
+    de que o modelo pode estar overfitando a um artefato da base pública."""
+    ranking = pd.DataFrame({
+        "descritor": colunas_x,
+        "importancia": modelo.feature_importances_,
+    }).sort_values("importancia", ascending=False).reset_index(drop=True)
+    return ranking
+
+
 def validar_externamente(modelo, colunas_x, caminho_planilha: str) -> pd.DataFrame:
     """Aplica o modelo (sem retreino) aos ingredientes isolados da planilha
     própria — validação externa da Fase 2."""
