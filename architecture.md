@@ -4,53 +4,55 @@
 
 Este projeto tem como objetivo prever a **ecotoxicidade** (inibição do crescimento de algas) de ativos amazônicos e, futuramente, de formulações cosméticas, utilizando modelos **QSAR (Quantitative Structure–Activity Relationship)** baseados em descritores moleculares.
 
+O projeto integra o **TCC/PJC 2026 da Universidade Federal do Amapá (UNIFAP)** e foi desenvolvido integralmente em Python.
+
 ---
 
-# Visão Geral da Arquitetura
+# Visão Geral
 
 ```text
-                        ┌─────────────────────────────┐
-                        │   Base Pública ECOTOX (EPA) │
-                        └──────────────┬──────────────┘
-                                       │
-                                       ▼
-                              CAS → PubChem → SMILES
-                                       │
-                                       ▼
-                           Cálculo de descritores (RDKit)
-                                       │
-                                       ▼
-                       Treinamento do modelo QSAR (Fase 1)
-                                       │
-                         Random Forest + Validação k-fold
-                                       │
-                                       ▼
-                           Modelo treinado (congelado)
-                                       │
-                 ┌─────────────────────┴─────────────────────┐
-                 ▼                                           ▼
-      Validação com ativos amazônicos            Futuras formulações
-              (Fase 2)                    (Fase 3 — descritores de mistura)
+                 Base Pública ECOTOX (EPA)
+                           │
+                           ▼
+                 CAS → PubChem → SMILES
+                           │
+                           ▼
+                  Descritores (RDKit)
+                           │
+                           ▼
+              Treinamento do modelo QSAR
+          Random Forest + Validação cruzada
+                           │
+                  Modelo congelado
+                           │
+         ┌─────────────────┴─────────────────┐
+         ▼                                   ▼
+ Validação externa                 Validação do modelo
+ (ativos amazônicos)          (qualidade, Y-scrambling,
+                                    leverage e GHS)
+         │
+         ▼
+ Futuras formulações (Fase 3)
 ```
 
 ---
 
-# Motivação
+# Por que duas fases?
 
-Os dados disponíveis respondem à mesma pergunta científica em escalas diferentes:
+Os dados públicos e os dados experimentais respondem à mesma pergunta científica, porém em escalas diferentes.
 
 - **Base pública:** uma molécula → um efeito biológico;
 - **Base experimental:** um ingrediente → um efeito biológico.
 
-Ainda não existe uma tabela contendo a composição das formulações cosméticas. Por esse motivo, não é possível construir um modelo para misturas.
+Ainda não existe uma tabela contendo a composição completa das formulações cosméticas. Portanto, não é possível treinar diretamente um modelo para misturas.
 
 A estratégia adotada segue a prática recomendada para modelos QSAR:
 
 1. treinar utilizando uma base pública ampla;
 2. congelar o modelo treinado;
-3. realizar validação externa utilizando os dados experimentais próprios.
+3. validar externamente utilizando os dados experimentais.
 
-Essa abordagem reduz o risco de **overfitting** em uma base pequena (6–17 amostras) e está alinhada aos princípios de validação propostos pela OECD.
+Essa abordagem reduz o risco de **overfitting** em uma base pequena (6–17 amostras) e segue os princípios de validação da **OECD**.
 
 ---
 
@@ -58,15 +60,13 @@ Essa abordagem reduz o risco de **overfitting** em uma base pequena (6–17 amos
 
 ## Objetivo
 
-Construir um modelo QSAR utilizando a base **ECOTOX Knowledgebase (US EPA)**.
-
-## Componentes
+Construir um modelo QSAR utilizando dados públicos da **ECOTOX Knowledgebase (US EPA)**.
 
 | Etapa | Ferramenta / Fonte |
 |--------|--------------------|
-| Dados de toxicidade em algas | ECOTOX Knowledgebase (US EPA) |
+| Dados de toxicidade | ECOTOX Knowledgebase |
 | Conversão CAS → SMILES | PubChem PUG REST |
-| Descritores moleculares | RDKit |
+| Descritores | RDKit |
 | Variável-resposta | pEC50 = −log10(EC50 em mol/L) |
 | Modelo | Random Forest |
 | Validação | Cross Validation (k = 5) |
@@ -103,28 +103,22 @@ Random Forest
 Modelo QSAR
 ```
 
----
-
-## Observação
-
-O download da base **ECOTOX** deve ser realizado localmente, conforme descrito em **`README.md`**, pois o ambiente de execução não possui acesso direto aos arquivos disponibilizados pela EPA.
+O download da base ECOTOX deve ser realizado localmente seguindo as instruções presentes em **README.md**.
 
 ---
 
 # Fase 2 — Validação Externa
 
-Após o treinamento, o modelo permanece **congelado**.
+Após o treinamento, o modelo permanece **congelado**, ou seja, não é ajustado novamente utilizando os dados experimentais.
 
-Não é realizado retreinamento utilizando os dados próprios, evitando que uma base pequena substitua o conhecimento adquirido na base pública.
-
-## Dados utilizados
+Isso evita que uma base pequena sobrescreva o conhecimento aprendido na base pública.
 
 | Etapa | Fonte |
 |--------|-------|
 | Ingredientes | `Dados_QSAR_Saile_PJC2026.xlsx` |
-| Aba utilizada | `5_SMILES_Ingredientes` |
-| Descritores | RDKit (mesma função da Fase 1) |
-| Comparação | Predição do modelo × % de inibição experimental |
+| Aba | `5_SMILES_Ingredientes` |
+| Descritores | Mesma função RDKit utilizada na Fase 1 |
+| Comparação | Predição do modelo × % de inibição observado |
 
 ---
 
@@ -154,17 +148,70 @@ Comparação com os resultados experimentais
 
 ---
 
-# Fase 3 — Predição de Formulações (Pendente)
+# Validação do Modelo
 
-Atualmente não existe uma tabela relacionando:
+A validação não constitui uma nova fase do projeto.
 
-- formulação;
-- ingredientes;
-- concentração de cada ingrediente.
+Ela funciona como uma **auditoria** realizada após o treinamento do modelo (Fase 1) e antes da interpretação dos resultados obtidos na validação externa (Fase 2).
 
-Sem essas informações não é possível construir descritores moleculares de misturas.
+O objetivo é verificar se o modelo realmente aprendeu relações entre estrutura molecular e atividade biológica, em vez de apenas memorizar padrões da base de treinamento.
 
-A estrutura esperada é:
+| Verificação | Objetivo | Implementação |
+|-------------|----------|---------------|
+| Qualidade dos dados | Detectar duplicatas, outliers e descritores sem variação | `validacao.py` |
+| Y-scrambling | Avaliar se o desempenho decorre de sinal químico real ou apenas de ruído | `validacao.py` |
+| Domínio de aplicabilidade (Leverage) | Verificar se um ativo amazônico pertence ao espaço químico conhecido pelo modelo | `validacao.py` |
+| Matriz de confusão (GHS) | Avaliar em quais categorias de toxicidade o modelo acerta ou erra | `validacao.py` |
+
+---
+
+## Fluxo de Validação
+
+```text
+Modelo treinado
+        │
+        ├────────► Qualidade dos dados
+        │
+        ├────────► Y-scrambling
+        │
+        ├────────► Domínio de aplicabilidade
+        │
+        └────────► Matriz de confusão (GHS)
+```
+
+Essas verificações **não modificam o modelo**.
+
+Elas apenas fornecem evidências sobre sua confiabilidade.
+
+### Matriz de Confusão
+
+O modelo produz uma predição contínua em **pEC50**.
+
+Para facilitar a interpretação ambiental, esses valores são convertidos em categorias de toxicidade aguda aquática do **Sistema Globalmente Harmonizado (GHS)**.
+
+A matriz compara:
+
+```text
+Categoria observada
+        ×
+Categoria prevista
+```
+
+permitindo identificar se o modelo tende a:
+
+- superestimar a toxicidade;
+- subestimar a toxicidade;
+- ou classificar corretamente cada composto.
+
+---
+
+# Fase 3 — Formulações Cosméticas (Pendente)
+
+Atualmente não existe uma tabela relacionando cada formulação aos ingredientes que a compõem e às respectivas concentrações.
+
+Sem essa informação não é possível calcular descritores moleculares de misturas.
+
+A estrutura necessária é:
 
 ```text
 amostra_id | ingrediente | percentual
@@ -178,19 +225,17 @@ Exemplo:
 | A1 | Copaíba | 35 |
 | A1 | Decyl glucoside | 45 |
 
-Quando essa tabela estiver disponível será possível utilizar a função:
+Quando essa informação estiver disponível será utilizada a função:
 
 ```python
 descritor_da_mistura()
 ```
 
-implementada em:
+presente em:
 
 ```text
 dados.py
 ```
-
-para gerar descritores ponderados da formulação completa.
 
 ---
 
@@ -198,22 +243,22 @@ para gerar descritores ponderados da formulação completa.
 
 ## SMILES incorreto do Decyl Glucoside
 
-Na aba **`5_SMILES_Ingredientes`**, o composto **Decyl glucoside** possui um SMILES incorreto.
+O SMILES presente na aba **`5_SMILES_Ingredientes`** corresponde a um sal de nióbio obtido de uma página **Substance** do PubChem, e não ao composto **Decyl glucoside**.
 
-O registro corresponde a um **sal de nióbio**, proveniente de uma página **Substance** do PubChem em vez da página **Compound**.
+Como o RDKit interpreta esse SMILES sem gerar erro, a inconsistência não é detectada automaticamente.
 
-Como o RDKit interpreta esse SMILES sem gerar erro, essa inconsistência não é detectada automaticamente e deve ser corrigida manualmente.
+A correção deve ser realizada manualmente.
 
 ---
 
-## Diferenças de unidades experimentais
+## Diferenças nas unidades experimentais
 
 Os experimentos utilizam diferentes escalas de concentração celular:
 
 - células/mL;
 - ×10⁵ células/mL.
 
-Essa padronização já é realizada automaticamente durante a normalização implementada em **`dados.py`**.
+Essa padronização já é realizada automaticamente durante a etapa de normalização implementada em **`dados.py`**.
 
 ---
 
@@ -228,6 +273,7 @@ architecture.md
     ├── dados.py
     ├── ecotox.py
     ├── modelo.py
+    ├── validacao.py
     ├── README.md
     ├── requirements.txt
     └── Dados_QSAR_Saile_PJC2026.xlsx
@@ -238,18 +284,19 @@ architecture.md
 | Arquivo | Responsabilidade |
 |----------|------------------|
 | `main.py` | Ponto de entrada da aplicação (`dados` ou `publico`). |
-| `descritores.py` | Cálculo dos descritores moleculares via RDKit. Módulo compartilhado pelos demais componentes. |
+| `descritores.py` | Cálculo dos descritores moleculares utilizando RDKit. |
 | `dados.py` | Processamento da planilha experimental, normalização dos dados e implementação inicial do descritor de mistura. |
-| `ecotox.py` | Download, filtragem e preparação da base pública ECOTOX, incluindo consultas ao PubChem. |
-| `modelo.py` | Ajuste de curvas dose–resposta (EC50), treinamento do modelo QSAR, validação cruzada e validação externa. |
+| `ecotox.py` | Preparação da base pública ECOTOX, filtragem dos dados e obtenção de SMILES via PubChem. |
+| `modelo.py` | Ajuste de curvas dose–resposta, treinamento do modelo QSAR, validação cruzada e validação externa. |
+| `validacao.py` | Avaliação da qualidade dos dados, Y-scrambling, domínio de aplicabilidade (Leverage) e matriz de confusão das categorias GHS. |
 
-A separação em módulos segue o princípio de **responsabilidade única**, organizando o código por função (descritores, dados, base pública e modelagem), e não pelas fases do projeto. Dessa forma, componentes reutilizados, como `descritores.py`, permanecem centralizados e evitam duplicação de código.
+Cada módulo possui uma responsabilidade específica, seguindo o princípio de **responsabilidade única**. A organização é feita por função (descritores, dados, modelagem e validação), e não pelas fases do projeto, permitindo o reaproveitamento de componentes como `descritores.py` em diferentes etapas do pipeline.
 
 ---
 
 # Interface
 
-O projeto possui interface exclusivamente em **linha de comando (CLI)**.
+O projeto utiliza exclusivamente **interface de linha de comando (CLI)**.
 
 Os modos disponíveis são:
 
@@ -263,6 +310,6 @@ Processa apenas os dados experimentais.
 python3 main.py publico
 ```
 
-Executa o treinamento utilizando a base pública ECOTOX e realiza a validação externa nos ativos amazônicos.
+Executa o treinamento utilizando a base pública ECOTOX, realiza as rotinas de validação do modelo e aplica o modelo treinado aos ativos amazônicos.
 
 Não há interface gráfica, pois o objetivo do projeto é disponibilizar um pipeline científico modular voltado à pesquisa e experimentação computacional.
