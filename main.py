@@ -21,6 +21,9 @@ def rodar_dados(caminho_planilha: str = dados.ARQUIVO_PADRAO):
     df = dados.carregar_dados_inibicao(caminho_planilha)
     print(df.head())
 
+    # Gera automaticamente os relatórios em Excel e gráficos das curvas de crescimento
+    dados.gerar_relatorios_e_graficos(df)
+
     descritores_df = dados.carregar_descritores_ingredientes(caminho_planilha)
     print(descritores_df)
 

@@ -68,3 +68,93 @@ def descritor_da_mistura(tabela_composicao: pd.DataFrame,
         return pd.Series({c: np.average(g[c], weights=pesos) for c in cols_desc})
 
     return merged.groupby("amostra_id").apply(media_ponderada).reset_index()
+
+
+def gerar_relatorios_e_graficos(df: pd.DataFrame, pasta_assets: str = "assets", arquivo_saida: str = "relatorio_contagem_celular.xlsx"):
+    """Gera relatórios em Excel e gráficos de crescimento celular automaticamente."""
+    import os
+    import matplotlib.pyplot as plt
+
+    # 1. Salva tabela limpa e ordenada em Excel
+    df_ordenado = df.sort_values(["experimento", "amostra_id", "diluicao_label", "dia"])
+    df_ordenado.to_excel(arquivo_saida, index=False, sheet_name="Contagens_Celulares")
+    print(f"[INFO] Relatório completo em Excel salvo em: {arquivo_saida}")
+
+    # 2. Cria pasta de assets se não existir
+    os.makedirs(pasta_assets, exist_ok=True)
+
+    # 3. Gráfico para TCC_original (6 amostras)
+    df_tcc = df[df["experimento"] == "TCC_original"].copy()
+    if not df_tcc.empty:
+        amostras = sorted(df_tcc["amostra_id"].unique(), key=lambda x: int(x.split()[-1]) if x.split()[-1].isdigit() else 0)
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+        axes = axes.flatten()
+
+        for i, amostra in enumerate(amostras):
+            if i >= len(axes):
+                break
+            ax = axes[i]
+            sub_df = df_tcc[df_tcc["amostra_id"] == amostra].sort_values("dia")
+
+            # Controle
+            ctrl_df = sub_df[["dia", "controle_normalizado"]].drop_duplicates().sort_values("dia")
+            ax.plot(ctrl_df["dia"], ctrl_df["controle_normalizado"], "k--", label="Controle", marker="o", linewidth=2)
+
+            # Diluições
+            for diluicao in sub_df["diluicao_label"].dropna().unique():
+                dil_df = sub_df[sub_df["diluicao_label"] == diluicao].sort_values("dia")
+                ax.plot(dil_df["dia"], dil_df["contagem_normalizada"], label=diluicao, marker="s", alpha=0.8)
+
+            ax.set_title(f"{amostra} (TCC Original)")
+            ax.set_ylabel("Células/mL")
+            ax.set_xlabel("Dia")
+            ax.grid(True, linestyle=":", alpha=0.6)
+            ax.legend(fontsize=8)
+
+        # Ocultar subplots sobressalentes se houver
+        for j in range(len(amostras), len(axes)):
+            fig.delaxes(axes[j])
+
+        plt.tight_layout()
+        caminho_tcc = os.path.join(pasta_assets, "curvas_crescimento_tcc_original.png")
+        plt.savefig(caminho_tcc, dpi=300)
+        plt.close()
+        print(f"[INFO] Gráfico TCC Original salvo em: {caminho_tcc}")
+
+    # 4. Gráfico para Novo_exp_diluicoes (4 amostras)
+    df_novo = df[df["experimento"] == "Novo_exp_diluicoes"].copy()
+    if not df_novo.empty:
+        amostras = sorted(df_novo["amostra_id"].unique(), key=lambda x: int(x.split()[-1]) if x.split()[-1].isdigit() else 0)
+        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+        axes = axes.flatten()
+
+        for i, amostra in enumerate(amostras):
+            if i >= len(axes):
+                break
+            ax = axes[i]
+            sub_df = df_novo[df_novo["amostra_id"] == amostra].sort_values("dia")
+
+            # Controle
+            ctrl_df = sub_df[["dia", "controle_normalizado"]].drop_duplicates().sort_values("dia")
+            ax.plot(ctrl_df["dia"], ctrl_df["controle_normalizado"], "k--", label="Controle", marker="o", linewidth=2)
+
+            # Diluições
+            for diluicao in sub_df["diluicao_label"].dropna().unique():
+                dil_df = sub_df[sub_df["diluicao_label"] == diluicao].sort_values("dia")
+                ax.plot(dil_df["dia"], dil_df["contagem_normalizada"], label=diluicao, marker="s", alpha=0.8)
+
+            ax.set_title(f"{amostra} (Novo Exp. Diluições)")
+            ax.set_ylabel("Células/mL")
+            ax.set_xlabel("Dia")
+            ax.grid(True, linestyle=":", alpha=0.6)
+            ax.legend(fontsize=8)
+
+        # Ocultar subplots sobressalentes se houver
+        for j in range(len(amostras), len(axes)):
+            fig.delaxes(axes[j])
+
+        plt.tight_layout()
+        caminho_novo = os.path.join(pasta_assets, "curvas_crescimento_novo_exp.png")
+        plt.savefig(caminho_novo, dpi=300)
+        plt.close()
+        print(f"[INFO] Gráfico Novo Experimento salvo em: {caminho_novo}")
