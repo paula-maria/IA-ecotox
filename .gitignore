@@ -31,3 +31,6 @@ Thumbs.db
 ecotox_ascii/
 *.xlsx
 *.csv
+
+matriz_confusao.png
+/pubchem_cache.json

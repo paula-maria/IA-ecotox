@@ -65,8 +65,7 @@ def treinar_modelo_exploratorio(X: pd.DataFrame, y: pd.Series) -> dict:
 def treinar_modelo_publico(matriz: pd.DataFrame):
     from sklearn.ensemble import RandomForestRegressor
     from sklearn.model_selection import KFold, cross_val_predict
-    from sklearn.metrics import r2_score, mean_squared_error
-    import numpy as np
+    from sklearn.metrics import r2_score, root_mean_squared_error
 
     colunas_x = [c for c in matriz.columns if c not in ("pEC50", "cas")]
     X, y = matriz[colunas_x], matriz["pEC50"]
@@ -77,7 +76,7 @@ def treinar_modelo_publico(matriz: pd.DataFrame):
     pred_cv = cross_val_predict(modelo, X, y, cv=kf)
 
     print(f"R² (validação cruzada 5-fold): {r2_score(y, pred_cv):.3f}")
-    print(f"RMSE (validação cruzada 5-fold): {np.sqrt(mean_squared_error(y, pred_cv)):.3f}")
+    print(f"RMSE (validação cruzada 5-fold): {root_mean_squared_error(y, pred_cv):.3f}")
 
     modelo.fit(X, y)  # modelo final treinado com toda a base pública
     return modelo, colunas_x

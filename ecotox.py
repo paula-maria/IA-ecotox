@@ -273,7 +273,15 @@ def _conc_para_mol_por_l(conc_mean: float, unit_raw: str, mol_wt: float) -> floa
 
 
 def montar_matriz_treino(df: pd.DataFrame) -> pd.DataFrame:
-    """Junta descritores + variável-resposta em escala molar (pEC50)."""
+    """Junta descritores + variável-resposta em escala molar (pEC50).
+
+    Deduplicação por CAS: o mesmo composto pode aparecer múltiplas vezes no
+    ECOTOX como réplicas biológicas ou estudos distintos. Antes de retornar,
+    agrupamos por 'cas' e tiramos a média de todas as colunas numéricas
+    (incluindo pEC50), garantindo uma linha por composto. Isso evita vazamento
+    de dado (data leakage) na validação cruzada por KFold — sem essa etapa, o
+    mesmo composto poderia cair em fold de treino e de teste simultaneamente.
+    """
     registros = []
     skipped_unit = 0
     skipped_invalid = 0
@@ -313,6 +321,25 @@ def montar_matriz_treino(df: pd.DataFrame) -> pd.DataFrame:
             "em _UNIT_TO_G_PER_L ou _UNIT_TO_MOL_PER_L.\n"
             "  3. Se o PubChem retornou SMILES válidos (verifique pubchem_cache.json)."
         )
-    print(f"[INFO] Matriz de treino montada: {len(matriz)} amostras, "
-          f"{matriz['pEC50'].isna().sum()} pEC50 NaN.")
+
+    n_antes = len(matriz)
+    n_cas_antes = matriz["cas"].nunique()
+
+    # --- Deduplicação: uma linha por composto (CAS) ----------------------------
+    # Colunas numéricas recebem a média; 'cas' é a chave de agrupamento.
+    # Colunas não numéricas (se houver alguma além de 'cas') são descartadas
+    # neste passo porque não fazem sentido como média (ex.: strings de SMILES).
+    colunas_num = matriz.select_dtypes(include="number").columns.tolist()
+    matriz = (
+        matriz.groupby("cas", sort=False)[colunas_num]
+        .mean()
+        .reset_index()
+    )
+    n_depois = len(matriz)
+    duplicatas = n_antes - n_depois
+
+    print(f"[INFO] Matriz de treino montada: {n_antes} amostras brutas → "
+          f"{n_depois} compostos únicos (CAS) após deduplicação "
+          f"({duplicatas} réplicas removidas, média por CAS).")
+    print(f"[INFO] pEC50 NaN após deduplicação: {matriz['pEC50'].isna().sum()}.")
     return matriz

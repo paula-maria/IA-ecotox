@@ -78,7 +78,7 @@ conda install -c conda-forge rdkit
 |----------|--------|
 | `descritores.py` | Calcula descritores moleculares utilizando o RDKit a partir de um SMILES. É utilizado pelos demais módulos do projeto. |
 | `dados.py` | Carrega e normaliza os dados experimentais da planilha `Dados_QSAR_Saile_PJC2026.xlsx`. |
-| `ecotox.py` | Carrega e filtra a base pública ECOTOX, obtém os SMILES via PubChem e monta a matriz de treinamento para o modelo QSAR. |
+| `ecotox.py` | Carrega e filtra a base pública ECOTOX, obtém os SMILES via PubChem, deduplica por CAS (média das réplicas) e monta a matriz de treinamento para o modelo QSAR. |
 | `modelo.py` | Implementa o treinamento do modelo Random Forest com a base ECOTOX e a validação externa com os dados amazônicos. |
 | `validacao.py` | Avaliação da qualidade dos dados, Y-scrambling, domínio de aplicabilidade (leverage) e matriz de confusão das categorias GHS. |
 | `main.py` | Ponto de entrada da aplicação. Executa os módulos conforme o modo escolhido pelo usuário. |
@@ -167,6 +167,9 @@ RDKit
 Descritores Moleculares
       │
       ▼
+Deduplicação por CAS (média das réplicas/estudos)
+      │
+      ▼
 Treinamento do modelo QSAR (Random Forest)
       │
       ▼
@@ -184,6 +187,17 @@ Ao final da execução são apresentados:
 - coeficiente de determinação (**R²**);
 - erro quadrático médio (**RMSE**);
 - predição de **pEC50** para cada ingrediente presente na planilha experimental.
+
+### Métricas atuais do modelo (base: *Chlorella vulgaris*, ECOTOX)
+
+| Métrica | Valor |
+|---|---|
+| Amostras brutas | 1 735 |
+| Compostos únicos (CAS) após deduplicação | 355 |
+| R² — validação cruzada 5-fold | **0.217** |
+| RMSE — validação cruzada 5-fold | **1.187** |
+
+> **Nota metodológica:** antes da deduplicação, o mesmo CAS podia aparecer em folds de treino e de teste simultaneamente (data leakage), inflando o R² para ~0.55. O valor de 0.217 reflete a capacidade real de generalização do modelo com apenas 8 descritores 2D simples. O Y-scrambling confirma que o sinal aprendido é real (R²_embaralhado médio = −0.19).
 
 ---
 

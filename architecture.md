@@ -134,13 +134,27 @@ RDKit
 Descritores
      │
      ▼
+Deduplicação por CAS
+(média das réplicas/estudos — 1 linha por composto)
+     │
+     ▼
 Random Forest
      │
      ▼
 Modelo QSAR
 ```
 
-O download da base ECOTOX deve ser realizado localmente seguindo as instruções presentes em **README.md**.
+### Métricas atuais (base: *Chlorella vulgaris*, ECOTOX)
+
+| Métrica | Valor |
+|---|---|
+| Amostras brutas | 1 735 |
+| Compostos únicos (CAS) após deduplicação | **355** |
+| R² — validação cruzada 5-fold | **0.217** |
+| RMSE — validação cruzada 5-fold | **1.187** |
+| Y-scrambling (R²_embaralhado médio) | −0.192 ✔ |
+
+> **Por que o R² caiu de ~0.55 para 0.217?** Antes da deduplicação, o mesmo CAS aparecia simultaneamente em folds de treino e de teste (data leakage), inflando artificialmente a métrica. O valor atual reflete a capacidade real de generalização com 8 descritores 2D. O Y-scrambling confirma que o modelo aprendeu sinal químico genüino.
 
 ---
 
@@ -323,7 +337,7 @@ architecture.md
 | `main.py` | Ponto de entrada da aplicação (`dados`, `publico` ou `validar`). |
 | `descritores.py` | Cálculo dos descritores moleculares utilizando RDKit. |
 | `dados.py` | Processamento da planilha experimental e normalização dos dados. |
-| `ecotox.py` | Preparação da base pública ECOTOX, filtragem dos dados e obtenção de SMILES via PubChem. |
+| `ecotox.py` | Preparação da base pública ECOTOX: filtragem por espécie, obtenção de SMILES via PubChem, deduplicação por CAS (média das réplicas) e montagem da matriz de treinamento. |
 | `modelo.py` | Treinamento do modelo QSAR (Random Forest), validação cruzada e validação externa com os dados amazônicos. |
 | `validacao.py` | Avaliação da qualidade dos dados, Y-scrambling, domínio de aplicabilidade (leverage) e matriz de confusão das categorias GHS. |
 
