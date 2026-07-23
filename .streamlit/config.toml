@@ -1,0 +1,11 @@
+[theme]
+# Primary accent color (Green for Amazon theme)
+primaryColor = "#2e7d32"
+# Background color
+backgroundColor = "#f8f9fa"
+# Secondary background color (Sidebar)
+secondaryBackgroundColor = "#ffffff"
+# Text color
+textColor = "#212529"
+# Font (sans serif)
+font = "sans serif"

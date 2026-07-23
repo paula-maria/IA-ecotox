@@ -30,7 +30,8 @@ Thumbs.db
 # Data files and huge outputs
 ecotox_ascii/
 *.xlsx
+!Dados_QSAR_Saile_PJC2026.xlsx
 *.csv
+!matriz_treino_ecotox.csv
 
 matriz_confusao.png
-/pubchem_cache.json
