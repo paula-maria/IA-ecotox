@@ -7,7 +7,7 @@ import ecotox
 import modelo
 import validacao
 
-st.set_page_config(page_title="QSAR Ecotoxicidade", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="QSAR Ecotoxicidade", layout="wide")
 
 # ---- Injeção de CSS Customizado ----
 st.markdown("""
@@ -105,6 +105,7 @@ Utilize o **Menu Lateral** para navegar pelas etapas do pipeline:
 ---
 ### Documentação Técnica
 """)
+    st.page_link("https://github.com/paula-maria/IA-ecotox", label="Repositório Oficial no GitHub", icon="🔗")
     
     try:
         with open("readme.md", "r", encoding="utf-8") as f:
