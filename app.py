@@ -132,6 +132,23 @@ if modo == "1. Dados Experimentais":
                 dados.gerar_relatorios_e_graficos(df)
                 st.success("Arquivos Excel e PNGs de curvas gerados na pasta do projeto.")
                 
+                # Exibir os gráficos gerados no Streamlit
+                if os.path.exists("assets/curvas_crescimento_tcc_original.png"):
+                    st.image("assets/curvas_crescimento_tcc_original.png", caption="Curvas de Crescimento - TCC", use_container_width=True)
+                if os.path.exists("assets/curvas_crescimento_novo_exp.png"):
+                    st.image("assets/curvas_crescimento_novo_exp.png", caption="Curvas de Crescimento - Novo Experimento", use_container_width=True)
+                    
+                # Exibir botão de download para o arquivo Excel
+                if os.path.exists("relatorio_contagem_celular.xlsx"):
+                    with open("relatorio_contagem_celular.xlsx", "rb") as file:
+                        st.download_button(
+                            label="Baixar Dados",
+                            data=file,
+                            file_name="relatorio_contagem_celular.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+
+                
                 st.subheader("Descritores Moleculares Calculados")
                 descritores_df = dados.carregar_descritores_ingredientes(caminho_planilha)
                 st.dataframe(descritores_df, use_container_width=True)
