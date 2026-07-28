@@ -82,6 +82,31 @@ def treinar_modelo_publico(matriz: pd.DataFrame):
     return modelo, colunas_x
 
 
+def treinar_classificador_ghs(matriz: pd.DataFrame):
+    """Treina um classificador RandomForest especificamente para as categorias
+    GHS, utilizando class_weight='balanced' para lidar com o desbalanceamento
+    das classes, em especial a classe 'Não classificado (>100 mg/L)'."""
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import KFold, cross_val_predict
+    from validacao import classificar_toxicidade_ghs, LABELS_GHS
+
+    colunas_x = [c for c in matriz.columns if c not in ("pEC50", "cas")]
+    X = matriz[colunas_x]
+    
+    # Criar a coluna de classes GHS alvo
+    y_class = [classificar_toxicidade_ghs(row["pEC50"], row["MolWt"]) for _, row in matriz.iterrows()]
+    y_class = pd.Series(y_class)
+
+    # n_jobs=-1 para paralelizar, class_weight="balanced" para compensar o desbalanceamento
+    modelo = RandomForestClassifier(n_estimators=300, random_state=42, n_jobs=-1, class_weight="balanced")
+    
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    pred_cv = cross_val_predict(modelo, X, y_class, cv=kf)
+    
+    modelo.fit(X, y_class)
+    return modelo, pred_cv, y_class
+
+
 def importancia_descritores(modelo, colunas_x: list[str]) -> pd.DataFrame:
     """Ranking de quais descritores mais pesam na predição (passo 6 do
     fluxo: 'quais descritores mais influenciam a toxicidade'). Depois de

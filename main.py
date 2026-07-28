@@ -62,6 +62,7 @@ def rodar_validacao(caminho_planilha: str = dados.ARQUIVO_PADRAO):
         print("[ATENÇÃO] R² real não se distanciou o suficiente do embaralhado "
               "— revisar o modelo antes de reportar como preditivo.")
 
+
     print("\n=== Domínio de aplicabilidade (ativos amazônicos) ===")
     ingredientes = dados.carregar_descritores_ingredientes(caminho_planilha)
     colunas_comuns = [c for c in colunas_x if c in ingredientes.columns]
@@ -70,7 +71,14 @@ def rodar_validacao(caminho_planilha: str = dados.ARQUIVO_PADRAO):
     print(f"h* (limite de corte) = {leverage_df.attrs['h_estrela']:.3f}")
     print(leverage_df[["Ingrediente", "leverage", "dentro_do_dominio"]])
 
-    print("\n=== Matriz de confusão (categorias GHS) ===")
+    print("\n=== Distribuição de Classes GHS (Treino) ===")
+    from validacao import classificar_toxicidade_ghs
+
+    classes_obs = [classificar_toxicidade_ghs(row["pEC50"], row["MolWt"]) for _, row in matriz.iterrows()]
+    contagem = pd.Series(classes_obs).value_counts()
+    print(contagem)
+
+    print("\n=== Matriz de confusão (Regressão pEC50 contínuo) ===")
     # usa o mesmo esquema de validação cruzada 5-fold do treino público como
     # 'previsto', comparado ao 'observado' real da base — dá uma view geral
     # de acerto por categoria antes mesmo de aplicar aos dados amazônicos
@@ -81,10 +89,21 @@ def rodar_validacao(caminho_planilha: str = dados.ARQUIVO_PADRAO):
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
     pred_cv = cross_val_predict(modelo_cv, X, y, cv=kf)
 
-    df_matriz = validacao.matriz_confusao_toxicidade(y, pd.Series(pred_cv), matriz["MolWt"])
-    print(df_matriz)
-    caminho_png = validacao.plotar_matriz_confusao(df_matriz)
-    print(f"Matriz de confusão salva em: {caminho_png}")
+    df_matriz_reg = validacao.matriz_confusao_toxicidade(y, pd.Series(pred_cv), matriz["MolWt"])
+    print(df_matriz_reg)
+    caminho_png_reg = validacao.plotar_matriz_confusao(df_matriz_reg, "matriz_confusao_regressao.png")
+
+    print("\n=== Matriz de confusão (Classificador com class_weight='balanced') ===")
+    modelo_clf, pred_cv_clf, y_class = modelo.treinar_classificador_ghs(matriz)
+    from sklearn.metrics import confusion_matrix
+    from validacao import LABELS_GHS
+    matriz_clf = confusion_matrix(y_class, pred_cv_clf, labels=LABELS_GHS)
+    df_matriz_clf = pd.DataFrame(matriz_clf, index=LABELS_GHS, columns=LABELS_GHS)
+    df_matriz_clf.index.name = "Observado"
+    df_matriz_clf.columns.name = "Previsto"
+    print(df_matriz_clf)
+    caminho_png_clf = validacao.plotar_matriz_confusao(df_matriz_clf, "matriz_confusao_classificador.png")
+    print(f"\nMatrizes de confusão salvas em: {caminho_png_reg} e {caminho_png_clf}")
 
 
 if __name__ == "__main__":
