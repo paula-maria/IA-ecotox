@@ -26,6 +26,7 @@ O [descritores.py](file:///home/paula/Downloads/IA-ecotox/descritores.py) é a i
         *   `NumRotatableBonds` (Ligações Rotacionáveis)
         *   `RingCount` (Quantidade total de anéis)
         *   `AromaticRings` (Quantidade de anéis aromáticos)
+        *   `MACCS Keys` (166 features binárias com perfis estruturais de grupamentos funcionais)
 
 ---
 
@@ -54,8 +55,8 @@ O [ecotox.py](file:///home/paula/Downloads/IA-ecotox/ecotox.py) constrói a base
 O [modelo.py](file:///home/paula/Downloads/IA-ecotox/modelo.py) define o algoritmo de aprendizado de máquina para modelar a relação estrutura-atividade quantitativa.
 
 *   **Principais Funções:**
-    *   `treinar_modelo_publico()`: Treina o algoritmo **Random Forest Regressor** (configurado com 300 árvores de decisão e otimizado em múltiplos núcleos com `n_jobs=-1`) utilizando toda a matriz de dados da base pública ECOTOX. Reporta o desempenho estimado por validação cruzada 5-fold (R² e RMSE).
-    *   `importancia_descritores()`: Extrai a importância relativa de cada variável molecular calculada pelo RDKit para a tomada de decisão do modelo.
+    *   `treinar_modelo_publico()`: Executa um pipeline com `StandardScaler` e aplica o **GridSearchCV** para encontrar o melhor algoritmo entre o **Random Forest Regressor** e o **SVR**, utilizando `n_jobs=2` para não travar o PC do usuário. Reporta o desempenho estimado por validação cruzada 5-fold (R² e RMSE) e elege o melhor modelo.
+    *   `importancia_descritores()`: Extrai a importância relativa de cada variável molecular calculada pelo RDKit usando a técnica **Permutation Importance**, que é agnóstica ao modelo vencedor.
     *   `validar_externamente()`: Executa o modelo QSAR previamente congelado sobre os ingredientes amazônicos extraídos pelo módulo `dados.py`, gerando predições de pEC50 e convertendo de volta para concentração equivalente em miligramas por litro (mg/L).
 
 ---
@@ -65,7 +66,7 @@ O [validacao.py](file:///home/paula/Downloads/IA-ecotox/validacao.py) audita o p
 
 *   **Principais Funções:**
     *   `checar_qualidade_dados()`: Inspeciona a base de treinamento em busca de duplicatas, valores nulos, outliers estatísticos na variável dependente e descritores sem variabilidade estrutural.
-    *   `teste_y_scrambling()`: Embaralha aleatoriamente o vetor de respostas $y$ (`pEC50`) 30 vezes e retreina a Random Forest em paralelo (`n_jobs=-1`). Se o desempenho com o vetor real não for significativamente superior ao das repetições com alvos embaralhados, sinaliza risco de falso positivo estatístico (overfitting de ruído).
+    *   `teste_y_scrambling()`: Embaralha aleatoriamente o vetor de respostas $y$ (`pEC50`) 30 vezes e retreina a Random Forest (`n_jobs=2`). Se o desempenho com o vetor real não for significativamente superior ao das repetições com alvos embaralhados, sinaliza risco de falso positivo estatístico (overfitting de ruído).
     *   `calcular_leverage(X_treino, X_novo)`: Determina se os novos compostos (ativos amazônicos) pertencem ao espaço químico do modelo (Domínio de Aplicabilidade) calculando a distância de leverage ($h$) e comparando-a com o limite crítico usual ($h^* = 3(p+1)/n$).
     *   `matriz_confusao_toxicidade()`: Transforma os valores de toxicidade contínuos em categorias discretas regulamentadas pelo **GHS (Sistema Globalmente Harmonizado)** da ONU para predições e valores observados.
     *   `plotar_matriz_confusao()`: Gera e salva um Heatmap gráfico (`matriz_confusao.png`) demonstrando os acertos e erros do modelo sob validação cruzada.

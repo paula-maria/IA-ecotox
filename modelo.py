@@ -64,39 +64,114 @@ def treinar_modelo_exploratorio(X: pd.DataFrame, y: pd.Series) -> dict:
 # ---------------------------------------------------------------------------
 def treinar_modelo_publico(matriz: pd.DataFrame):
     from sklearn.ensemble import RandomForestRegressor
-    from sklearn.model_selection import KFold, cross_val_predict
-    from sklearn.metrics import r2_score, root_mean_squared_error
+    from sklearn.svm import SVR
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import KFold, GridSearchCV
 
     colunas_x = [c for c in matriz.columns if c not in ("pEC50", "cas")]
     X, y = matriz[colunas_x], matriz["pEC50"]
 
-    # n_jobs=-1: treina em paralelo usando todas as CPUs para agilizar o tempo de execução
-    modelo = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+    print("\n[INFO] Padronizando as variáveis (StandardScaler)...")
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
-    pred_cv = cross_val_predict(modelo, X, y, cv=kf)
 
-    print(f"R² (validação cruzada 5-fold): {r2_score(y, pred_cv):.3f}")
-    print(f"RMSE (validação cruzada 5-fold): {root_mean_squared_error(y, pred_cv):.3f}")
+    # Definir modelos e grades de parâmetros para otimização
+    modelos = {
+        "RandomForest": {
+            "estimator": RandomForestRegressor(random_state=42, n_jobs=2),
+            "params": {
+                "n_estimators": [100, 300],
+                "max_depth": [None, 10, 20],
+                "min_samples_leaf": [1, 2]
+            }
+        },
+        "SVR": {
+            "estimator": SVR(),
+            "params": {
+                "C": [0.1, 1, 10],
+                "gamma": ["scale", "auto", 0.01],
+                "epsilon": [0.01, 0.1, 0.2]
+            }
+        }
+    }
 
-    modelo.fit(X, y)  # modelo final treinado com toda a base pública
-    return modelo, colunas_x
+    melhor_modelo = None
+    melhor_nome = ""
+    melhor_score = -float('inf')
+
+    print("[INFO] Iniciando Grid Search (Busca em Grade)... Isso pode demorar um pouco.")
+    for nome, config in modelos.items():
+        print(f"  -> Otimizando {nome}...")
+        grid = GridSearchCV(config["estimator"], config["params"], cv=kf, scoring="r2", n_jobs=2)
+        grid.fit(X_scaled, y)
+        
+        score_cv = grid.best_score_
+        print(f"     Melhor R² CV: {score_cv:.3f} | Params: {grid.best_params_}")
+        
+        if score_cv > melhor_score:
+            melhor_score = score_cv
+            melhor_modelo = grid.best_estimator_
+            melhor_nome = nome
+
+    print(f"\n[INFO] Modelo vencedor: {melhor_nome} (R² CV = {melhor_score:.3f})")
+
+    # Treina o modelo final com toda a base pública (o GridSearchCV já faz isso com best_estimator_, mas fica explícito)
+    melhor_modelo.fit(X_scaled, y)
+    return melhor_modelo, colunas_x, scaler
 
 
-def importancia_descritores(modelo, colunas_x: list[str]) -> pd.DataFrame:
-    """Ranking de quais descritores mais pesam na predição (passo 6 do
-    fluxo: 'quais descritores mais influenciam a toxicidade'). Depois de
-    rodar, checar se o descritor no topo faz sentido mecanisticamente
-    (ex.: LogP alto → mais toxicidade, por bioacumulação/permeação de
-    membrana) — se o mais importante não tiver relação plausível, é sinal
-    de que o modelo pode estar overfitando a um artefato da base pública."""
+def treinar_classificador_ghs(matriz: pd.DataFrame):
+    """Treina um classificador RandomForest especificamente para as categorias
+    GHS, utilizando class_weight='balanced' para lidar com o desbalanceamento
+    das classes, em especial a classe 'Não classificado (>100 mg/L)'."""
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import KFold, cross_val_predict
+    from validacao import classificar_toxicidade_ghs, LABELS_GHS
+
+    colunas_x = [c for c in matriz.columns if c not in ("pEC50", "cas")]
+    X = matriz[colunas_x]
+    
+    # Criar a coluna de classes GHS alvo
+    y_class = [classificar_toxicidade_ghs(row["pEC50"], row["MolWt"]) for _, row in matriz.iterrows()]
+    y_class = pd.Series(y_class)
+
+    # n_jobs=2 para paralelizar de leve, class_weight="balanced" para compensar o desbalanceamento
+    modelo = RandomForestClassifier(n_estimators=300, random_state=42, n_jobs=2, class_weight="balanced")
+    
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    pred_cv = cross_val_predict(modelo, X, y_class, cv=kf)
+    
+    modelo.fit(X, y_class)
+    return modelo, pred_cv, y_class
+
+
+def importancia_descritores(modelo, colunas_x: list[str], scaler=None, matriz=None) -> pd.DataFrame:
+    """Ranking de quais descritores mais pesam na predição.
+    Usa Permutation Importance (agnóstico ao modelo) para suportar tanto RF quanto SVR."""
+    from sklearn.inspection import permutation_importance
+
+    if matriz is not None and scaler is not None:
+        X = matriz[colunas_x]
+        y = matriz["pEC50"]
+        X_scaled = scaler.transform(X)
+        resultado = permutation_importance(modelo, X_scaled, y, n_repeats=10, random_state=42, n_jobs=2)
+        importancias = resultado.importances_mean
+    elif hasattr(modelo, "feature_importances_"):
+        # Fallback para classificador ou RF legado
+        importancias = modelo.feature_importances_
+    else:
+        importancias = [0] * len(colunas_x)
+
     ranking = pd.DataFrame({
         "descritor": colunas_x,
-        "importancia": modelo.feature_importances_,
+        "importancia": importancias,
     }).sort_values("importancia", ascending=False).reset_index(drop=True)
     return ranking
 
 
-def validar_externamente(modelo, colunas_x, caminho_planilha: str) -> pd.DataFrame:
+def validar_externamente(modelo, colunas_x, caminho_planilha: str, scaler=None) -> pd.DataFrame:
     """Aplica o modelo (sem retreino) aos ingredientes isolados da planilha
     própria — validação externa da Fase 2."""
     ingredientes = pd.read_excel(caminho_planilha,
@@ -109,7 +184,11 @@ def validar_externamente(modelo, colunas_x, caminho_planilha: str) -> pd.DataFra
         if desc is None:
             continue
         X_novo = pd.DataFrame([desc])[colunas_x]
-        pred_pEC50 = modelo.predict(X_novo)[0]
+        if scaler is not None:
+            X_novo_scaled = scaler.transform(X_novo)
+        else:
+            X_novo_scaled = X_novo
+        pred_pEC50 = modelo.predict(X_novo_scaled)[0]
         linhas.append({"Ingrediente": row["Ingrediente"], "pEC50_previsto": pred_pEC50})
 
     return pd.DataFrame(linhas)

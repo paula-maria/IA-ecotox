@@ -14,6 +14,8 @@ função `importancia_descritores` do modelo.py já dá o ranking pra isso.
 
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------------------------
@@ -82,16 +84,16 @@ def teste_y_scrambling(X: pd.DataFrame, y: pd.Series, n_repeticoes: int = 30,
     rng = np.random.RandomState(random_state)
     kf = KFold(n_splits=5, shuffle=True, random_state=random_state)
 
-    # n_jobs=-1: usa todos os núcleos de CPU disponíveis para paralelizar e acelerar o processamento
-    modelo_real = RandomForestRegressor(n_estimators=300, random_state=random_state, n_jobs=-1)
+    # n_jobs=2: usa só 2 threads para não travar a máquina (overhead do joblib)
+    modelo_real = RandomForestRegressor(n_estimators=300, random_state=random_state, n_jobs=2)
     pred_real = cross_val_predict(modelo_real, X, y, cv=kf)
     r2_real = r2_score(y, pred_real)
 
     r2_embaralhados = []
     for _ in range(n_repeticoes):
         y_embaralhado = y.sample(frac=1.0, random_state=rng.randint(0, 1_000_000)).reset_index(drop=True)
-        # n_jobs=-1: paraleliza o treino de cada repetição do embaralhado
-        modelo_emb = RandomForestRegressor(n_estimators=300, random_state=random_state, n_jobs=-1)
+        # n_jobs=2: limita paralelismo para não esgotar RAM/CPU
+        modelo_emb = RandomForestRegressor(n_estimators=300, random_state=random_state, n_jobs=2)
         pred_emb = cross_val_predict(modelo_emb, X, y_embaralhado, cv=kf)
         r2_embaralhados.append(r2_score(y_embaralhado, pred_emb))
 
@@ -197,6 +199,30 @@ def plotar_matriz_confusao(df_matriz: pd.DataFrame, caminho_saida: str = "matriz
             ax.text(j, i, str(valor), ha="center", va="center", color=cor_texto)
 
     fig.colorbar(im, ax=ax, label="Nº de compostos")
+    fig.tight_layout()
+    fig.savefig(caminho_saida, dpi=150)
+    plt.close(fig)
+    return caminho_saida
+
+
+def plotar_analise_residuos(pEC50_observado: pd.Series, pEC50_previsto: pd.Series, caminho_saida: str = "analise_residuos.png"):
+    """Gera um gráfico de dispersão Observado vs Previsto com linha de identidade."""
+    fig, ax = plt.subplots(figsize=(6, 6))
+    
+    # Scatter plot
+    ax.scatter(pEC50_observado, pEC50_previsto, alpha=0.6, edgecolors='w', s=60)
+    
+    # Linha de identidade perfeita (y = x)
+    min_val = min(pEC50_observado.min(), pEC50_previsto.min())
+    max_val = max(pEC50_observado.max(), pEC50_previsto.max())
+    ax.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Previsão Perfeita')
+    
+    ax.set_xlabel("Toxicidade Observada (pEC50)")
+    ax.set_ylabel("Toxicidade Prevista (pEC50)")
+    ax.set_title("Análise de Resíduos: Observado vs. Previsto")
+    ax.legend()
+    ax.grid(True, linestyle='--', alpha=0.5)
+    
     fig.tight_layout()
     fig.savefig(caminho_saida, dpi=150)
     plt.close(fig)

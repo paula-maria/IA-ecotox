@@ -169,14 +169,14 @@ elif modo == "2. Treinamento Público + Previsão":
                 
                 # Para suprimir os prints originais do `treinar_modelo_publico` e colocar no Streamlit,
                 # chamamos os métodos, mas o `treinar_modelo_publico` faz prints internos de RMSE.
-                modelo_treinado, colunas_x = modelo.treinar_modelo_publico(matriz)
+                modelo_treinado, colunas_x, scaler = modelo.treinar_modelo_publico(matriz)
                 
                 st.subheader("Importância dos Descritores")
-                ranking = modelo.importancia_descritores(modelo_treinado, colunas_x)
+                ranking = modelo.importancia_descritores(modelo_treinado, colunas_x, scaler, matriz)
                 st.dataframe(ranking, use_container_width=True)
                 
                 st.subheader("Previsão para os ativos amazônicos (pEC50)")
-                previsao = modelo.validar_externamente(modelo_treinado, colunas_x, caminho_planilha)
+                previsao = modelo.validar_externamente(modelo_treinado, colunas_x, caminho_planilha, scaler)
                 st.dataframe(previsao, use_container_width=True)
                 
                 # Botão de download
@@ -228,7 +228,7 @@ elif modo == "3. Validação do Modelo":
                 from sklearn.ensemble import RandomForestRegressor
                 from sklearn.model_selection import KFold, cross_val_predict
                 
-                modelo_cv = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+                modelo_cv = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=2)
                 kf = KFold(n_splits=5, shuffle=True, random_state=42)
                 pred_cv = cross_val_predict(modelo_cv, X, y, cv=kf)
                 

@@ -209,10 +209,11 @@ O modelo preditivo de ecotoxicidade é treinado com as seguintes definições:
 
 | Configuração | Valor |
 |---|---|
-| Algoritmo | Random Forest Regressor (`scikit-learn`) |
-| Número de árvores | 300 (`n_estimators=300`) |
-| Paralelismo | todas as CPUs disponíveis (`n_jobs=-1`) |
+| Algoritmos Testados | Random Forest Regressor e SVR (Support Vector Regression) |
+| Otimização | `GridSearchCV` para busca dos melhores hiperparâmetros |
+| Paralelismo | 2 processos (`n_jobs=2`) para evitar travamentos por overhead de memória |
 | Reprodutibilidade | semente fixa (`random_state=42`) |
+| Pré-processamento | `StandardScaler` (Padronização das variáveis) |
 | Validação | 5-Fold Cross-Validation |
 
 ## Variáveis de entrada (descritores moleculares)
@@ -229,6 +230,7 @@ Calculados via **RDKit** a partir do SMILES de cada composto:
 | `NumRotatableBonds` | Flexibilidade molecular |
 | `RingCount` | Número de anéis |
 | `AromaticRings` | Número de anéis aromáticos |
+| `MACCS Keys` | 166 features binárias descrevendo subestruturas moleculares (ex: anéis específicos, grupos funcionais como OH, halogênios) |
 
 ## Variável-resposta
 
