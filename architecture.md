@@ -85,13 +85,13 @@ O **Random Forest Regressor** é um algoritmo de aprendizado de máquina supervi
    * **Subespaço Aleatório (Feature Randomness):** Em cada nó da árvore, em vez de avaliar todos os descritores moleculares para decidir onde dividir os dados, o algoritmo sorteia aleatoriamente um subconjunto dos descritores disponíveis. A árvore escolhe o melhor divisor somente a partir desse subconjunto sorteado, o que diminui a correlação entre as árvores criadas e aumenta a diversidade do modelo.
 
 3. **Predição por Agregação (Bagging):**
-   * Uma vez treinadas as 300 árvores independentes (configuradas via `n_estimators=300`), o modelo final calcula a predição para um novo composto químico.
-   * Cada árvore percorre seus nós de decisão até estimar um valor de $pEC50$ específico. A predição final do Random Forest é a **média aritmética simples** das estimativas de todas as 300 árvores individuais:
+   * Uma vez treinadas as árvores independentes (configuradas via `GridSearchCV`), o modelo final calcula a predição para um novo composto químico.
+   * Cada árvore percorre seus nós de decisão até estimar um valor de $pEC50$ específico. A predição final do Random Forest é a **média aritmética simples** das estimativas de todas as árvores individuais:
      $$\hat{y} = \frac{1}{B} \sum_{b=1}^{B} f_b(x)$$
      onde $B$ é o número de árvores e $f_b(x)$ é a predição da árvore $b$. Este processo reduz significativamente a variância geral sem elevar o viés do modelo.
 
-4. **Importância dos Descritores (MDI):**
-   * O algoritmo rastreia o quanto cada descritor molecular reduz a impureza dos nós (neste caso, a variância dos erros de regressão) ao longo de todas as árvores em que é selecionado. A média ponderada dessas reduções fornece a importância relativa de cada característica na tomada de decisão final do modelo.
+4. **Importância dos Descritores (Permutation Importance):**
+   * Em vez de usar a importância nativa do RF (que pode ser enviesada), o algoritmo utiliza **Permutation Importance**. Ele embaralha os valores de um descritor específico e mede a queda na precisão (R²) do modelo. Se o R² despenca, aquele descritor era vital para a predição. Foi assim que o modelo identificou o peso molecular e a chave MACCS_139 (grupos hidroxila) como os fatores mais críticos para a toxicidade.
 
 ### Respaldo científico e posicionamento do projeto
 
@@ -149,10 +149,10 @@ Modelo QSAR
 | Métrica | Valor |
 |---|---|
 | Amostras brutas | 1 735 |
-| Compostos únicos (CAS) após deduplicação | **355** |
-| R² — validação cruzada 5-fold | **0.217** |
-| RMSE — validação cruzada 5-fold | **1.187** |
-| Y-scrambling (R²_embaralhado médio) | −0.192 ✔ |
+| Compostos únicos (CAS) após deduplicação | **326** |
+| R² — validação cruzada 5-fold | **0.298** |
+| RMSE — validação cruzada 5-fold | **1.118** |
+| Y-scrambling (R²_embaralhado médio) | −0.200 ✔ |
 
 > **Por que o R² caiu de ~0.55 para 0.217?** Antes da deduplicação, o mesmo CAS aparecia simultaneamente em folds de treino e de teste (data leakage), inflando artificialmente a métrica. O valor atual reflete a capacidade real de generalização com 8 descritores 2D. O Y-scrambling confirma que o modelo aprendeu sinal químico genüino.
 
@@ -347,20 +347,19 @@ Cada módulo possui uma responsabilidade específica, seguindo o princípio de *
 
 # Interface
 
-O projeto utiliza exclusivamente **interface de linha de comando (CLI)**.
+O projeto agora possui uma **Interface Gráfica Web** desenvolvida em **Streamlit**, oferecendo uma experiência interativa para explorar e executar as etapas do pipeline.
 
-Os modos disponíveis são:
-
-```bash
-python3 main.py dados
-```
-
-Processa apenas os dados experimentais.
+Para iniciar a aplicação, utilize o comando no terminal:
 
 ```bash
-python3 main.py publico
+streamlit run app.py
 ```
 
-Executa o treinamento utilizando a base pública ECOTOX, realiza as rotinas de validação do modelo e aplica o modelo treinado aos ativos amazônicos.
+A aplicação possui um menu lateral que permite selecionar entre os seguintes modos de execução:
 
-Não há interface gráfica, pois o objetivo do projeto é disponibilizar um pipeline científico modular voltado à pesquisa e experimentação computacional.
+- **0. Como Funciona / Tutorial**: Exibe a documentação do pipeline, o tutorial de uso do aplicativo e os embasamentos teóricos do projeto.
+- **1. Dados Experimentais**: Processa a planilha de inibição celular, calcula os descritores moleculares dos ativos e gera visualizações e relatórios (como gráficos de curvas de crescimento) interativos na própria tela.
+- **2. Treinamento Público + Previsão**: Treina o algoritmo Random Forest na base pública ECOTOX e prevê a toxicidade (pEC50) dos ingredientes investigados. Também disponibiliza os resultados em CSV para download e exibe a importância dos descritores na tela.
+- **3. Validação do Modelo**: Executa as avaliações de robustez do algoritmo na interface. Inclui verificação da qualidade dos dados, Y-Scrambling, Domínio de Aplicabilidade (leverage) e exibe os acertos por Categoria GHS na Matriz de Confusão.
+
+O usuário também tem flexibilidade para testar os próprios dados: a aplicação carrega automaticamente a planilha experimental padrão do projeto, mas oferece suporte a **upload de arquivos `.xlsx` customizados** via barra lateral.

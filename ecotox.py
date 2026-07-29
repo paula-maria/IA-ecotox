@@ -326,20 +326,33 @@ def montar_matriz_treino(df: pd.DataFrame) -> pd.DataFrame:
     n_cas_antes = matriz["cas"].nunique()
 
     # --- Deduplicação: uma linha por composto (CAS) ----------------------------
-    # Colunas numéricas recebem a média; 'cas' é a chave de agrupamento.
-    # Colunas não numéricas (se houver alguma além de 'cas') são descartadas
-    # neste passo porque não fazem sentido como média (ex.: strings de SMILES).
-    colunas_num = matriz.select_dtypes(include="number").columns.tolist()
+    # Remove CAS com réplicas muito divergentes (desvio padrão > 1.0 no pEC50)
+    # Isso evita tirar a média de dados conflitantes de diferentes laboratórios.
+    limite_std_pec50 = 1.0
+    std_pec50 = matriz.groupby("cas", sort=False)["pEC50"].std()
+    cas_validos = std_pec50[std_pec50.isna() | (std_pec50 <= limite_std_pec50)].index
+    n_cas_descartados = len(std_pec50) - len(cas_validos)
+
+    matriz_filtrada = matriz[matriz["cas"].isin(cas_validos)]
+    linhas_descartadas = n_antes - len(matriz_filtrada)
+
+    # Tira a média das colunas numéricas para as réplicas que concordam entre si
+    colunas_num = matriz_filtrada.select_dtypes(include="number").columns.tolist()
     matriz = (
-        matriz.groupby("cas", sort=False)[colunas_num]
+        matriz_filtrada.groupby("cas", sort=False)[colunas_num]
         .mean()
         .reset_index()
     )
+    
     n_depois = len(matriz)
-    duplicatas = n_antes - n_depois
+    linhas_condensadas = len(matriz_filtrada) - n_depois
 
-    print(f"[INFO] Matriz de treino montada: {n_antes} amostras brutas → "
-          f"{n_depois} compostos únicos (CAS) após deduplicação "
-          f"({duplicatas} réplicas removidas, média por CAS).")
+    print(f"[INFO] Matriz de treino montada: {n_antes} amostras brutas originais.")
+    if n_cas_descartados > 0:
+        print(f"[INFO] {n_cas_descartados} compostos (CAS) descartados por alta divergência "
+              f"entre laboratórios/réplicas (desvio padrão pEC50 > {limite_std_pec50}). "
+              f"({linhas_descartadas} linhas afetadas).")
+    print(f"[INFO] Resultado final: {n_depois} compostos únicos (CAS) após deduplicação "
+          f"({linhas_condensadas} réplicas condensadas pela média).")
     print(f"[INFO] pEC50 NaN após deduplicação: {matriz['pEC50'].isna().sum()}.")
     return matriz

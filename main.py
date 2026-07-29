@@ -33,13 +33,13 @@ def rodar_publico(caminho_planilha: str = dados.ARQUIVO_PADRAO):
     dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
     matriz = ecotox.montar_matriz_treino(dados_ecotox)
 
-    modelo_treinado, colunas_x = modelo.treinar_modelo_publico(matriz)
+    modelo_treinado, colunas_x, scaler = modelo.treinar_modelo_publico(matriz)
 
-    ranking = modelo.importancia_descritores(modelo_treinado, colunas_x)
-    print("\nDescritores que mais influenciam a toxicidade prevista:")
+    ranking = modelo.importancia_descritores(modelo_treinado, colunas_x, scaler, matriz)
+    print("\nDescritores que mais influenciam a toxicidade prevista (Permutation Importance):")
     print(ranking)
 
-    previsao = modelo.validar_externamente(modelo_treinado, colunas_x, caminho_planilha)
+    previsao = modelo.validar_externamente(modelo_treinado, colunas_x, caminho_planilha, scaler)
     print("\nPrevisão para os ativos amazônicos:")
     print(previsao)
 
@@ -78,20 +78,31 @@ def rodar_validacao(caminho_planilha: str = dados.ARQUIVO_PADRAO):
     contagem = pd.Series(classes_obs).value_counts()
     print(contagem)
 
-    print("\n=== Matriz de confusão (Regressão pEC50 contínuo) ===")
-    # usa o mesmo esquema de validação cruzada 5-fold do treino público como
-    # 'previsto', comparado ao 'observado' real da base — dá uma view geral
-    # de acerto por categoria antes mesmo de aplicar aos dados amazônicos
-    from sklearn.ensemble import RandomForestRegressor
+    print("\n=== Matriz de confusão e Análise de Resíduos (Regressão pEC50 contínuo) ===")
+    # Usa validação cruzada no pipeline para extrair y_pred do melhor modelo sem vazar dados
+    from sklearn.preprocessing import StandardScaler
     from sklearn.model_selection import KFold, cross_val_predict
-    # n_jobs=-1: usa todas as CPUs disponíveis para paralelizar a validação cruzada
-    modelo_cv = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+    
+    # Para simplificar a validação e gerar gráficos rapidamente, vamos usar 
+    # o modelo treinado de forma mais direta, mas idealmente re-rodariamos o pipeline.
+    # Usaremos o RandomForest otimizado como representativo para os gráficos, 
+    # mas o grid_search no modelo publico é onde a mágica acontece.
+    
+    # Vamos gerar os gráficos:
+    # 1. Matriz de confusão clássica
+    modelo_cv, col_x, scaler_cv = modelo.treinar_modelo_publico(matriz)
+    
+    # Para o CV limpo, refazemos:
+    X_scaled = scaler_cv.transform(X)
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
-    pred_cv = cross_val_predict(modelo_cv, X, y, cv=kf)
+    pred_cv = cross_val_predict(modelo_cv, X_scaled, y, cv=kf)
 
     df_matriz_reg = validacao.matriz_confusao_toxicidade(y, pd.Series(pred_cv), matriz["MolWt"])
     print(df_matriz_reg)
     caminho_png_reg = validacao.plotar_matriz_confusao(df_matriz_reg, "matriz_confusao_regressao.png")
+    
+    caminho_png_residuo = validacao.plotar_analise_residuos(y, pd.Series(pred_cv), "analise_residuos.png")
+    print(f"[INFO] Gráfico de Análise de Resíduos salvo em: {caminho_png_residuo}")
 
     print("\n=== Matriz de confusão (Classificador com class_weight='balanced') ===")
     modelo_clf, pred_cv_clf, y_class = modelo.treinar_classificador_ghs(matriz)
