@@ -30,7 +30,8 @@ ENDPOINTS_CRESCIMENTO = ["EC50", "IC50", "NOEC", "LOEC"]
 
 
 def carregar_ecotox_algas(diretorio: Path = ECOTOX_DIR,
-                           especie: str = ESPECIE_ALVO) -> pd.DataFrame:
+                           especie: str = ESPECIE_ALVO,
+                           apenas_chlorella: bool = False) -> pd.DataFrame:
     path_tests = diretorio / "tests.txt"
     path_results = diretorio / "results.txt"
     path_species = diretorio / "species.txt"
@@ -64,24 +65,21 @@ def carregar_ecotox_algas(diretorio: Path = ECOTOX_DIR,
                           low_memory=False, encoding="latin1", on_bad_lines="skip")
     species.columns = [c.strip().lower() for c in species.columns]
 
-    species_alga = species[species["latin_name"].str.strip().str.lower()
-                            == especie.lower()]
-    origem_filtro = f"espécie exata ({especie})"
-
+    if apenas_chlorella:
+        species_alga = species[species["latin_name"].str.strip().str.lower()
+                                == especie.lower()]
+        origem_filtro = f"espécie exata ({especie})"
+    else:
+        padrao_genero = "|".join(GENEROS_ALGA)
+        species_alga = species[species["latin_name"].str.contains(
+            padrao_genero, case=False, na=False)]
+        origem_filtro = "todos os gêneros de algas verdes (Read-Across)"
+    
     # Carrega tests.txt filtrando apenas colunas necessárias
     tests = pd.read_csv(path_tests, sep="|",
                         usecols=lambda c: c.strip().lower() in ["test_id", "test_cas", "species_number"],
                         low_memory=False, encoding="latin1", on_bad_lines="skip")
     tests.columns = [c.strip().lower() for c in tests.columns]
-
-    if len(species_alga) == 0 or len(tests.merge(
-            species_alga, on="species_number", how="inner")) < LIMIAR_MINIMO_REGISTROS:
-        print(f"[AVISO] Poucos ou nenhum registro para '{especie}' isoladamente — "
-              f"ampliando para o gênero. Documentar essa decisão no TCC.")
-        padrao_genero = "|".join(GENEROS_ALGA)
-        species_alga = species[species["latin_name"].str.contains(
-            padrao_genero, case=False, na=False)]
-        origem_filtro = "gênero (fallback)"
 
     print(f"[INFO] Filtro de espécie usado: {origem_filtro} — "
           f"{len(species_alga)} espécie(s) encontrada(s).")

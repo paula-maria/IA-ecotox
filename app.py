@@ -46,15 +46,9 @@ st.markdown("Interface para o pipeline de aprendizado de máquina para previsão
 
 # ---- Cache do Modelo ----
 @st.cache_resource
-def load_public_data():
-    """Carrega e prepara a base pública apenas uma vez."""
-    arquivo_matriz = "matriz_treino_ecotox.csv"
-    if os.path.exists(arquivo_matriz):
-        # Se a matriz já foi processada (ideal para deploy), carrega direto
-        return pd.read_csv(arquivo_matriz)
-        
-    # Senão, processa a partir da base bruta (ecotox_ascii)
-    dados_ecotox = ecotox.carregar_ecotox_algas()
+def load_public_data(apenas_chlorella=False):
+    """Carrega e prepara a base pública apenas uma vez (Cacheados por argumento)."""
+    dados_ecotox = ecotox.carregar_ecotox_algas(apenas_chlorella=apenas_chlorella)
     dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
     matriz = ecotox.montar_matriz_treino(dados_ecotox)
     return matriz
@@ -78,6 +72,14 @@ if upload is not None:
     caminho_planilha = "temp_upload.xlsx"
     with open(caminho_planilha, "wb") as f:
         f.write(upload.getbuffer())
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Configurações do Modelo")
+modo_filtro = st.sidebar.radio(
+    "Filtro Biológico (ECOTOX):",
+    ["Todas as Algas Verdes (Read-Across, ~1700)", "Apenas Chlorella vulgaris (Estrito, ~320)"]
+)
+usar_chlorella = modo_filtro.startswith("Apenas")
 
 # ==========================================
 # MODO 0: COMO FUNCIONA / TUTORIAL
@@ -165,11 +167,12 @@ elif modo == "2. Treinamento Público + Previsão":
     if st.button("Executar Etapa 2", type="primary"):
         with st.spinner("Carregando base pública ECOTOX e treinando o modelo (Isso pode demorar na 1ª vez)..."):
             try:
-                matriz = load_public_data()
+                matriz = load_public_data(apenas_chlorella=usar_chlorella)
                 
-                # Para suprimir os prints originais do `treinar_modelo_publico` e colocar no Streamlit,
-                # chamamos os métodos, mas o `treinar_modelo_publico` faz prints internos de RMSE.
-                modelo_treinado, colunas_x, scaler = modelo.treinar_modelo_publico(matriz)
+                modelo_treinado, colunas_x, scaler, melhor_r2, nome_modelo = modelo.treinar_modelo_publico(matriz)
+                
+                st.success(f"Modelo Vencedor: **{nome_modelo}**")
+                st.metric(label="R² (Validação Cruzada 5-fold)", value=f"{melhor_r2:.3f}")
                 
                 st.subheader("Importância dos Descritores")
                 ranking = modelo.importancia_descritores(modelo_treinado, colunas_x, scaler, matriz)
@@ -196,7 +199,7 @@ elif modo == "3. Validação do Modelo":
     if st.button("Executar Etapa 3", type="primary"):
         with st.spinner("Realizando testes de validação no modelo (Pode demorar alguns minutos)..."):
             try:
-                matriz = load_public_data()
+                matriz = load_public_data(apenas_chlorella=usar_chlorella)
                 
                 st.subheader("Qualidade dos Dados")
                 relatorio_qualidade = validacao.checar_qualidade_dados(matriz)

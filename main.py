@@ -33,7 +33,7 @@ def rodar_publico(caminho_planilha: str = dados.ARQUIVO_PADRAO):
     dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
     matriz = ecotox.montar_matriz_treino(dados_ecotox)
 
-    modelo_treinado, colunas_x, scaler = modelo.treinar_modelo_publico(matriz)
+    modelo_treinado, colunas_x, scaler, melhor_r2, nome_modelo = modelo.treinar_modelo_publico(matriz)
 
     ranking = modelo.importancia_descritores(modelo_treinado, colunas_x, scaler, matriz)
     print("\nDescritores que mais influenciam a toxicidade prevista (Permutation Importance):")

@@ -119,7 +119,7 @@ def treinar_modelo_publico(matriz: pd.DataFrame):
 
     # Treina o modelo final com toda a base pública (o GridSearchCV já faz isso com best_estimator_, mas fica explícito)
     melhor_modelo.fit(X_scaled, y)
-    return melhor_modelo, colunas_x, scaler
+    return melhor_modelo, colunas_x, scaler, melhor_score, melhor_nome
 
 
 def treinar_classificador_ghs(matriz: pd.DataFrame):
