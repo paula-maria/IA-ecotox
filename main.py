@@ -1,7 +1,8 @@
 """Ponto de entrada do pipeline. Uso:
 
-    python3 main.py dados       # só normaliza a planilha própria e mostra os descritores
-    python3 main.py publico     # Fase 1 (treino no ECOTOX) + Fase 2 (validação externa)
+    python3 main.py dados             # só normaliza a planilha própria e mostra os descritores
+    python3 main.py publico           # Fase 1 (treino no ECOTOX) + Fase 2 (validação externa)
+    python3 main.py publico-combinado # como 'publico', mas combina ECOTOX + EnviroTox
 
 Ver README.md para instalação e pré-requisitos (em especial, o download
 manual do ECOTOX antes de rodar "publico").
@@ -13,6 +14,8 @@ import pandas as pd
 
 import dados
 import ecotox
+import envirotox
+import fontes_externas
 import modelo
 import validacao
 
@@ -117,6 +120,58 @@ def rodar_validacao(caminho_planilha: str = dados.ARQUIVO_PADRAO):
     print(f"\nMatrizes de confusão salvas em: {caminho_png_reg} e {caminho_png_clf}")
 
 
+def rodar_publico_combinado(caminho_planilha: str = dados.ARQUIVO_PADRAO):
+    """Treina o modelo com ECOTOX + EnviroTox combinados e reporta:
+    - Total de linhas na matriz combinada
+    - CAS exclusivos do EnviroTox (novos, não estavam no ECOTOX)
+    - Distribuição das 4 categorias GHS
+    """
+    # --- Carrega ECOTOX ---
+    print("\n=" * 60)
+    print("[FASE 1] Carregando ECOTOX...")
+    print("=" * 60)
+    dados_ecotox = ecotox.carregar_ecotox_algas()
+    dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
+    matriz_ecotox = ecotox.montar_matriz_treino(dados_ecotox)
+
+    # --- Carrega EnviroTox ---
+    print("\n" + "=" * 60)
+    print("[FASE 2] Carregando EnviroTox...")
+    print("=" * 60)
+    df_envirotox = envirotox.carregar_envirotox()
+    matriz_envirotox = envirotox.montar_matriz_envirotox(df_envirotox)
+
+    # --- Combina as fontes ---
+    print("\n" + "=" * 60)
+    print("[FASE 3] Combinando fontes...")
+    print("=" * 60)
+    matriz_combinada = fontes_externas.combinar_fontes(matriz_ecotox, matriz_envirotox)
+
+    # --- Treina o modelo com a matriz combinada ---
+    # Remove colunas string antes de passar para treinar_modelo_publico
+    # (latin_name é preservada nas colunas especie_* one-hot)
+    colunas_excluir_treino = {"pEC50", "cas", "latin_name", "fonte"}
+    colunas_treino = [c for c in matriz_combinada.columns if c not in colunas_excluir_treino]
+    matriz_para_modelo = matriz_combinada[["cas", "pEC50"] + colunas_treino].copy()
+
+    print("\n" + "=" * 60)
+    print("[FASE 4] Treinando modelo com matriz combinada...")
+    print("=" * 60)
+    modelo_treinado, colunas_x, scaler, melhor_r2, nome_modelo = modelo.treinar_modelo_publico(
+        matriz_para_modelo
+    )
+
+    ranking = modelo.importancia_descritores(modelo_treinado, colunas_x, scaler, matriz_para_modelo)
+    print("\nDescritores que mais influenciam (top 15):")
+    print(ranking.head(15))
+
+    previsao = modelo.validar_externamente(
+        modelo_treinado, colunas_x, caminho_planilha, scaler
+    )
+    print("\nPrevisão para os ativos amazônicos:")
+    print(previsao)
+
+
 if __name__ == "__main__":
     comando = sys.argv[1] if len(sys.argv) > 1 else "dados"
 
@@ -124,7 +179,9 @@ if __name__ == "__main__":
         rodar_dados()
     elif comando == "publico":
         rodar_publico()
+    elif comando == "publico-combinado":
+        rodar_publico_combinado()
     elif comando == "validar":
         rodar_validacao()
     else:
-        print(f"Comando desconhecido: {comando!r}. Use 'dados', 'publico' ou 'validar'.")
+        print(f"Comando desconhecido: {comando!r}. Use 'dados', 'publico', 'publico-combinado' ou 'validar'.")

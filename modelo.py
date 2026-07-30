@@ -183,7 +183,10 @@ def validar_externamente(modelo, colunas_x, caminho_planilha: str, scaler=None) 
         desc = calcular_descritores(row["SMILES_canonical"])
         if desc is None:
             continue
-        X_novo = pd.DataFrame([desc])[colunas_x]
+        # Preenche colunas ausentes com 0 (ex.: especie_* do EnviroTox não
+        # existem para compostos externos — semanticamente correto: nenhuma
+        # espécie associada → todas as flags one-hot valem 0).
+        X_novo = pd.DataFrame([desc]).reindex(columns=colunas_x, fill_value=0)
         if scaler is not None:
             X_novo_scaled = scaler.transform(X_novo)
         else:
