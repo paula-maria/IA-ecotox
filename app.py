@@ -50,24 +50,34 @@ st.markdown("Interface para o pipeline de aprendizado de máquina para previsão
 @st.cache_resource
 def load_public_data(apenas_chlorella=False):
     """Carrega e prepara a base pública ECOTOX apenas uma vez."""
-    dados_ecotox = ecotox.carregar_ecotox_algas(apenas_chlorella=apenas_chlorella)
-    dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
-    matriz = ecotox.montar_matriz_treino(dados_ecotox)
-    return matriz
+    try:
+        dados_ecotox = ecotox.carregar_ecotox_algas(apenas_chlorella=apenas_chlorella)
+        dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
+        matriz = ecotox.montar_matriz_treino(dados_ecotox)
+        return matriz
+    except FileNotFoundError:
+        st.toast("Modo Deploy: Usando matriz ECOTOX em cache (CSV).", icon="⚡")
+        return pd.read_csv("matriz_ecotox_deploy.csv")
 
 @st.cache_resource
 def load_combined_data(apenas_chlorella=False):
     """Carrega ECOTOX + EnviroTox combinados, com cache."""
-    # ECOTOX
-    dados_ecotox = ecotox.carregar_ecotox_algas(apenas_chlorella=apenas_chlorella)
-    dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
-    matriz_ecotox = ecotox.montar_matriz_treino(dados_ecotox)
-    # EnviroTox
-    df_et = envirotox.carregar_envirotox()
-    matriz_et = envirotox.montar_matriz_envirotox(df_et)
-    # Combina
-    matriz_combinada = fontes_externas.combinar_fontes(matriz_ecotox, matriz_et)
-    return matriz_combinada, len(matriz_ecotox), matriz_et["cas"].nunique()
+    try:
+        # ECOTOX
+        dados_ecotox = ecotox.carregar_ecotox_algas(apenas_chlorella=apenas_chlorella)
+        dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
+        matriz_ecotox = ecotox.montar_matriz_treino(dados_ecotox)
+        # EnviroTox
+        df_et = envirotox.carregar_envirotox()
+        matriz_et = envirotox.montar_matriz_envirotox(df_et)
+        # Combina
+        matriz_combinada = fontes_externas.combinar_fontes(matriz_ecotox, matriz_et)
+        return matriz_combinada, len(matriz_ecotox), matriz_et["cas"].nunique()
+    except FileNotFoundError:
+        st.toast("Modo Deploy: Usando matriz COMBINADA em cache (CSV).", icon="⚡")
+        matriz_combinada = pd.read_csv("matriz_combinada_deploy.csv")
+        stats = pd.read_csv("matriz_combinada_stats.csv")
+        return matriz_combinada, int(stats["n_ecotox"].iloc[0]), int(stats["n_envirotox_cas_unicos"].iloc[0])
 
 # ---- Menu Lateral ----
 modo = st.sidebar.radio(
