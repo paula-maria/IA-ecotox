@@ -33,5 +33,8 @@ ecotox_ascii/
 !Dados_QSAR_Saile_PJC2026.xlsx
 *.csv
 !matriz_treino_ecotox.csv
+!matriz_ecotox_deploy.csv
+!matriz_combinada_deploy.csv
+!matriz_combinada_stats.csv
 
 matriz_confusao.png
