@@ -60,14 +60,21 @@ conda install -c conda-forge rdkit
 .
 ├── architecture.md
 ├── README.md
+├── modules.md
 ├── requirements.txt
 ├── Dados_QSAR_Saile_PJC2026.xlsx
 ├── descritores.py
 ├── dados.py
 ├── ecotox.py
+├── envirotox.py          ← novo
+├── fontes_externas.py    ← novo
 ├── modelo.py
 ├── validacao.py
-└── main.py
+├── main.py
+├── app.py
+├── algae/                ← arquivos EnviroTox (filtro amplo)
+├── chlorella/            ← arquivos EnviroTox (Chlorella vulgaris)
+└── ecotox_ascii/         ← arquivos ECOTOX (US-EPA, download manual)
 ```
 
 ---
@@ -78,10 +85,13 @@ conda install -c conda-forge rdkit
 |----------|--------|
 | `descritores.py` | Calcula descritores moleculares utilizando o RDKit a partir de um SMILES. É utilizado pelos demais módulos do projeto. |
 | `dados.py` | Carrega e normaliza os dados experimentais da planilha `Dados_QSAR_Saile_PJC2026.xlsx`. |
-| `ecotox.py` | Carrega e filtra a base pública ECOTOX, obtém os SMILES via PubChem, deduplica por CAS (média das réplicas) e monta a matriz de treinamento para o modelo QSAR. |
-| `modelo.py` | Implementa o treinamento do modelo Random Forest com a base ECOTOX e a validação externa com os dados amazônicos. |
+| `ecotox.py` | Carrega e filtra a base pública ECOTOX, obtém os SMILES via PubChem, deduplica por CAS (média das réplicas) e monta a matriz de treinamento para o modelo QSAR. Exporta a lógica de conversão de unidades reutilizada por `envirotox.py`. |
+| `envirotox.py` | **Novo.** Carrega e pré-processa os dados do EnviroTox (Excel: sheets `test` + `substance`). Usa o SMILES já presente no banco sem chamar PubChem. Mantém `latin_name` como coluna categórica. |
+| `fontes_externas.py` | **Novo.** Une as matrizes do ECOTOX e do EnviroTox com controle de qualidade inter-fontes (std pEC50 > 1.0 → descarte) e one-hot encoding de `latin_name`. |
+| `modelo.py` | Implementa o treinamento do modelo Random Forest com a base pública e a validação externa com os dados amazônicos. |
 | `validacao.py` | Avaliação da qualidade dos dados, Y-scrambling, domínio de aplicabilidade (leverage) e matriz de confusão das categorias GHS. |
-| `main.py` | Ponto de entrada da aplicação. Executa os módulos conforme o modo escolhido pelo usuário. |
+| `main.py` | Ponto de entrada da aplicação. Comandos: `dados`, `publico`, `publico-combinado`, `validar`. |
+| `app.py` | Interface Streamlit com suporte a ambas as fontes de dados (ECOTOX puro ou combinado). |
 
 ---
 
@@ -120,10 +130,18 @@ O pipeline realiza:
 
 Antes da execução, é necessário obter a base pública ECOTOX (https://cfpub.epa.gov/ecotox/), extrair o conteúdo (arquivos ASCII) em `./ecotox_ascii/` e configurar o caminho em `ecotox.py`.
 
-### Execução
+Os arquivos EnviroTox já devem estar nas pastas `algae/` e `chlorella/` (Excel com sheets `test`, `substance`, `taxonomy`).
+
+### Execução — apenas ECOTOX
 
 ```bash
 python3 main.py publico
+```
+
+### Execução — ECOTOX + EnviroTox combinados (~2.140 compostos)
+
+```bash
+python3 main.py publico-combinado
 ```
 
 ---
@@ -188,16 +206,32 @@ Ao final da execução são apresentados:
 - erro quadrático médio (**RMSE**);
 - predição de **pEC50** para cada ingrediente presente na planilha experimental.
 
-### Métricas atuais do modelo (base: *Chlorella vulgaris*, ECOTOX)
+### Métricas atuais do modelo
+
+#### ECOTOX puro (base: algas verdes, Read-Across)
 
 | Métrica | Valor |
 |---|---|
-| Amostras brutas | 1 735 |
-| Compostos únicos (CAS) após deduplicação | 355 |
-| R² — validação cruzada 5-fold | **0.217** |
-| RMSE — validação cruzada 5-fold | **1.187** |
+| Amostras brutas | 13.808 |
+| Compostos únicos (CAS) após deduplicacão | 1.720 |
+| R² — validação cruzada 5-fold | a medir |
 
-> **Nota metodológica:** antes da deduplicação, o mesmo CAS podia aparecer em folds de treino e de teste simultaneamente (data leakage), inflando o R² para ~0.55. O valor de 0.217 reflete a capacidade real de generalização do modelo com apenas 8 descritores 2D simples. O Y-scrambling confirma que o sinal aprendido é real (R²_embaralhado médio = −0.19).
+#### ECOTOX + EnviroTox combinados
+
+| Métrica | Valor |
+|---|---|
+| Compostos ECOTOX | 1.720 CAS |
+| Compostos EnviroTox | 1.220 CAS |
+| **CAS exclusivos do EnviroTox (novos)** | **447** |
+| CAS compartilhados (média aplicada) | 746 |
+| CAS descartados (divergência inter-fonte, std > 1.0) | 27 |
+| **Total combinado** | **2.140 compostos** |
+| Distribuição GHS — Cat. 1 (≤1 mg/L) | 677 |
+| Distribuição GHS — Cat. 2 (1–10 mg/L) | 574 |
+| Distribuição GHS — Cat. 3 (10–100 mg/L) | 535 |
+| Distribuição GHS — Não classificado (>100 mg/L) | 354 |
+
+> **Nota:** O Y-scrambling e o R² na fonte combinada devem ser medidos após o treino completo com `python3 main.py publico-combinado`.
 
 ---
 

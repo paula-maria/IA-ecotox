@@ -11,28 +11,37 @@ O projeto integra o **TCC/PJC 2026 da Universidade Federal do Amapá (UNIFAP)** 
 # Visão Geral
 
 ```text
-                 Base Pública ECOTOX (EPA)
-                           │
-                           ▼
-                 CAS → PubChem → SMILES
-                           │
-                           ▼
-                  Descritores (RDKit)
-                           │
-                           ▼
-              Treinamento do modelo QSAR
-          Random Forest + Validação cruzada
-                           │
-                  Modelo congelado
-                           │
-         ┌─────────────────┴─────────────────┐
-         ▼                                   ▼
- Validação externa                 Validação do modelo
- (ativos amazônicos)          (qualidade, Y-scrambling,
-                                    leverage e GHS)
-         │
-         ▼
- Futuras formulações (Fase 3)
+     Base Pública ECOTOX (EPA)          Base Pública EnviroTox (opcional)
+               │                                    │
+               │                                    │
+               │────────────────────────────────┬────────────────────────────────┤
+                                    │
+                                    ▼
+                       fontes_externas.combinar_fontes()
+                       CAS únicos: cada um passa direto
+                       CAS compartilhados: verifica std pEC50
+                                    │
+                                    ▼
+                            CAS → SMILES
+                    (PubChem para ECOTOX, SMILES direto para EnviroTox)
+                                    │
+                                    ▼
+                           Descritores (RDKit)
+                                    │
+                                    ▼
+                        Treinamento do modelo QSAR
+                    Random Forest + Validação cruzada
+                                    │
+                           Modelo congelado
+                                    │
+               ┌───────────────────├───────────────────┐
+               ▼                                   ▼
+       Validação externa                 Validação do modelo
+       (ativos amazônicos)          (qualidade, Y-scrambling,
+                                         leverage e GHS)
+               │
+               ▼
+       Futuras formulações (Fase 3)
 ```
 
 ---
@@ -144,17 +153,56 @@ Random Forest
 Modelo QSAR
 ```
 
-### Métricas atuais (base: *Chlorella vulgaris*, ECOTOX)
+### Fonte combinada (ECOTOX + EnviroTox)
+
+Quando o modo `publico-combinado` é usado, o fluxo acima é estendido:
+
+```text
+ECOTOX                          EnviroTox
+  │ CAS → PubChem → SMILES       │ SMILES já presentes no Excel
+  ▼                               ▼
+  Descritores RDKit               Descritores RDKit
+       │                               │
+       └───────▼ fontes_externas.combinar_fontes() ▼───────┘
+                    CAS exclusivos: inclui diretamente
+                    CAS compartilhados: std pEC50 ≤ 1.0 → média
+                    CAS compartilhados: std pEC50 > 1.0 → descarta
+                    latin_name → one-hot (especie_*)
+                               │
+                               ▼
+                      Matriz combinada (~2.140 CAS)
+                               │
+                               ▼
+                         Random Forest
+                               │
+                               ▼
+                          Modelo QSAR
+```
+
+### Métricas atuais
+
+#### ECOTOX puro (base: algas verdes, Read-Across)
 
 | Métrica | Valor |
 |---|---|
-| Amostras brutas | 1 735 |
-| Compostos únicos (CAS) após deduplicação | **326** |
-| R² — validação cruzada 5-fold | **0.298** |
-| RMSE — validação cruzada 5-fold | **1.118** |
-| Y-scrambling (R²_embaralhado médio) | −0.200 ✔ |
+| Amostras brutas | 13.808 |
+| Compostos únicos (CAS) após deduplicação | 1.720 |
+| R² — validação cruzada 5-fold | a medir |
+| Y-scrambling (R²_embaralhado médio) | a medir |
 
-> **Por que o R² caiu de ~0.55 para 0.217?** Antes da deduplicação, o mesmo CAS aparecia simultaneamente em folds de treino e de teste (data leakage), inflando artificialmente a métrica. O valor atual reflete a capacidade real de generalização com 8 descritores 2D. O Y-scrambling confirma que o modelo aprendeu sinal químico genüino.
+#### ECOTOX + EnviroTox combinados
+
+| Métrica | Valor |
+|---|---|
+| **Total combinado** | **2.140 compostos** |
+| CAS exclusivos ECOTOX | 947 |
+| **CAS exclusivos EnviroTox (novos)** | **447** |
+| CAS compartilhados (média) | 746 |
+| CAS descartados (divergência inter-fonte) | 27 |
+| Distribuição GHS — Cat. 1 (≤1 mg/L) | 677 |
+| Distribuição GHS — Cat. 2 (1–10 mg/L) | 574 |
+| Distribuição GHS — Cat. 3 (10–100 mg/L) | 535 |
+| Distribuição GHS — Não classificado (>100 mg/L) | 354 |
 
 ---
 
@@ -323,10 +371,17 @@ architecture.md
     ├── descritores.py
     ├── dados.py
     ├── ecotox.py
+    ├── envirotox.py          ← novo: carrega e processa EnviroTox
+    ├── fontes_externas.py    ← novo: combina ECOTOX + EnviroTox
     ├── modelo.py
     ├── validacao.py
+    ├── app.py
     ├── README.md
+    ├── modules.md
     ├── requirements.txt
+    ├── algae/                ← Excels EnviroTox (filtro amplo)
+    ├── chlorella/            ← Excels EnviroTox (Chlorella vulgaris)
+    ├── ecotox_ascii/         ← arquivos ASCII ECOTOX (download manual)
     └── Dados_QSAR_Saile_PJC2026.xlsx
 ```
 
@@ -334,12 +389,15 @@ architecture.md
 
 | Arquivo | Responsabilidade |
 |----------|------------------|
-| `main.py` | Ponto de entrada da aplicação (`dados`, `publico` ou `validar`). |
+| `main.py` | Ponto de entrada: comandos `dados`, `publico`, `publico-combinado`, `validar`. |
 | `descritores.py` | Cálculo dos descritores moleculares utilizando RDKit. |
 | `dados.py` | Processamento da planilha experimental e normalização dos dados. |
-| `ecotox.py` | Preparação da base pública ECOTOX: filtragem por espécie, obtenção de SMILES via PubChem, deduplicação por CAS (média das réplicas) e montagem da matriz de treinamento. |
-| `modelo.py` | Treinamento do modelo QSAR (Random Forest), validação cruzada e validação externa com os dados amazônicos. |
-| `validacao.py` | Avaliação da qualidade dos dados, Y-scrambling, domínio de aplicabilidade (leverage) e matriz de confusão das categorias GHS. |
+| `ecotox.py` | Preparação da base ECOTOX: filtragem por espécie, SMILES via PubChem, deduplicacão por CAS, conversão de unidades. Exporta `_conc_para_mol_por_l` reutilizado por `envirotox.py`. |
+| `envirotox.py` | **Novo.** Carrega os Excels do EnviroTox (sheets `test` + `substance`), usa SMILES direto do banco, mantém `latin_name` como feature categórica. |
+| `fontes_externas.py` | **Novo.** Combina ECOTOX + EnviroTox com controle de qualidade inter-fontes e one-hot encoding de `latin_name`. |
+| `modelo.py` | Treinamento do modelo QSAR (Random Forest + SVR via GridSearchCV), validação cruzada e validação externa. |
+| `validacao.py` | Qualidade dos dados, Y-scrambling, domínio de aplicabilidade (leverage) e matriz de confusão GHS. |
+| `app.py` | Interface Streamlit. Sidebar com opção de fonte de dados: ECOTOX puro ou ECOTOX + EnviroTox combinado. |
 
 Cada módulo possui uma responsabilidade específica, seguindo o princípio de **responsabilidade única**. A organização é feita por função (descritores, dados, modelagem e validação), e não pelas fases do projeto, permitindo o reaproveitamento de componentes como `descritores.py` em diferentes etapas do pipeline.
 
@@ -347,19 +405,21 @@ Cada módulo possui uma responsabilidade específica, seguindo o princípio de *
 
 # Interface
 
-O projeto agora possui uma **Interface Gráfica Web** desenvolvida em **Streamlit**, oferecendo uma experiência interativa para explorar e executar as etapas do pipeline.
+O projeto possui uma **Interface Gráfica Web** desenvolvida em **Streamlit**.
 
-Para iniciar a aplicação, utilize o comando no terminal:
+Para iniciar a aplicação:
 
 ```bash
 streamlit run app.py
 ```
 
-A aplicação possui um menu lateral que permite selecionar entre os seguintes modos de execução:
+A aplicação possui um menu lateral com:
 
-- **0. Como Funciona / Tutorial**: Exibe a documentação do pipeline, o tutorial de uso do aplicativo e os embasamentos teóricos do projeto.
-- **1. Dados Experimentais**: Processa a planilha de inibição celular, calcula os descritores moleculares dos ativos e gera visualizações e relatórios (como gráficos de curvas de crescimento) interativos na própria tela.
-- **2. Treinamento Público + Previsão**: Treina o algoritmo Random Forest na base pública ECOTOX e prevê a toxicidade (pEC50) dos ingredientes investigados. Também disponibiliza os resultados em CSV para download e exibe a importância dos descritores na tela.
-- **3. Validação do Modelo**: Executa as avaliações de robustez do algoritmo na interface. Inclui verificação da qualidade dos dados, Y-Scrambling, Domínio de Aplicabilidade (leverage) e exibe os acertos por Categoria GHS na Matriz de Confusão.
+- **Etapa 0 — Tutorial**: Documentação do pipeline.
+- **Etapa 1 — Dados Experimentais**: Processa a planilha de inibição e gera curvas de crescimento.
+- **Etapa 2 — Treinamento + Previsão**: Treina o modelo e prevê pEC50 dos ativos amazônicos. Suporta dois modos de fonte de dados:
+  - 📗 **ECOTOX (US-EPA)** — comportamento original (~1.720 compostos).
+  - 📗+📘 **ECOTOX + EnviroTox (combinado)** — exibe métricas de cobertura, gráfico de distribuição GHS e treina com ~2.140 compostos.
+- **Etapa 3 — Validação**: Y-Scrambling, Leverage, Matriz de Confusão GHS.
 
-O usuário também tem flexibilidade para testar os próprios dados: a aplicação carrega automaticamente a planilha experimental padrão do projeto, mas oferece suporte a **upload de arquivos `.xlsx` customizados** via barra lateral.
+A fonte de dados é selecionável na seção **"Fonte de Dados"** da barra lateral, sem necessidade de reiniciar a aplicação.
