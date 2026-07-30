@@ -4,6 +4,8 @@ import pandas as pd
 
 import dados
 import ecotox
+import envirotox
+import fontes_externas
 import modelo
 import validacao
 
@@ -47,11 +49,25 @@ st.markdown("Interface para o pipeline de aprendizado de máquina para previsão
 # ---- Cache do Modelo ----
 @st.cache_resource
 def load_public_data(apenas_chlorella=False):
-    """Carrega e prepara a base pública apenas uma vez (Cacheados por argumento)."""
+    """Carrega e prepara a base pública ECOTOX apenas uma vez."""
     dados_ecotox = ecotox.carregar_ecotox_algas(apenas_chlorella=apenas_chlorella)
     dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
     matriz = ecotox.montar_matriz_treino(dados_ecotox)
     return matriz
+
+@st.cache_resource
+def load_combined_data(apenas_chlorella=False):
+    """Carrega ECOTOX + EnviroTox combinados, com cache."""
+    # ECOTOX
+    dados_ecotox = ecotox.carregar_ecotox_algas(apenas_chlorella=apenas_chlorella)
+    dados_ecotox = ecotox.anexar_smiles(dados_ecotox)
+    matriz_ecotox = ecotox.montar_matriz_treino(dados_ecotox)
+    # EnviroTox
+    df_et = envirotox.carregar_envirotox()
+    matriz_et = envirotox.montar_matriz_envirotox(df_et)
+    # Combina
+    matriz_combinada = fontes_externas.combinar_fontes(matriz_ecotox, matriz_et)
+    return matriz_combinada, len(matriz_ecotox), matriz_et["cas"].nunique()
 
 # ---- Menu Lateral ----
 modo = st.sidebar.radio(
@@ -74,12 +90,36 @@ if upload is not None:
         f.write(upload.getbuffer())
 
 st.sidebar.markdown("---")
+
+with st.sidebar.expander("Entenda as Configurações", icon=":material/info:"):
+    st.markdown("""
+    **Filtro Biológico**
+    - **Todas as Algas Verdes**: Abordagem *Read-Across*. Usa dados de diversas espécies de algas verdes para generalizar o aprendizado (muito mais dados, R² mais estável).
+    - **Apenas Chlorella**: Modo estrito. Usa apenas ensaios com a espécie exata *Chlorella vulgaris*. (Menos dados, maior risco de overfitting).
+    
+    **Fonte de Dados**
+    - **ECOTOX**: Banco público tradicional (US-EPA). Contém cerca de 1.720 compostos filtrados.
+    - **Combinado**: Une ECOTOX ao banco **EnviroTox**, adicionando +447 moléculas novas exclusivas e descartando dados conflitantes entre os bancos. Cria um modelo global bem mais robusto (R² esperado sobe de ~0.25 para ~0.40).
+    """)
+
 st.sidebar.subheader("Configurações do Modelo")
 modo_filtro = st.sidebar.radio(
     "Filtro Biológico (ECOTOX):",
     ["Todas as Algas Verdes (Read-Across, ~1700)", "Apenas Chlorella vulgaris (Estrito, ~320)"]
 )
 usar_chlorella = modo_filtro.startswith("Apenas")
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Fonte de Dados")
+fonte_dados = st.sidebar.radio(
+    "Base de treino:",
+    [
+        "ECOTOX (US-EPA)",
+        "ECOTOX + EnviroTox (combinado)",
+    ],
+    help="ECOTOX: base clássica, ~1.720 CAS.\nCombinado: adiciona EnviroTox (~+447 CAS novos), totalizando ~2.140 compostos."
+)
+usar_combinado = fonte_dados.startswith("ECOTOX + EnviroTox")
 
 # ==========================================
 # MODO 0: COMO FUNCIONA / TUTORIAL
@@ -161,21 +201,77 @@ if modo == "1. Dados Experimentais":
 # MODO 2: PÚBLICO
 # ==========================================
 elif modo == "2. Treinamento Público + Previsão":
-    st.header("2. Treinamento (ECOTOX) e Previsão")
-    st.markdown("Treina o modelo na base pública e realiza a validação externa (previsão) para os ativos da planilha.")
-    
+    if usar_combinado:
+        st.header("Treinamento (ECOTOX + EnviroTox) e Previsão")
+        st.markdown(
+            "Treina o modelo na base combinada **ECOTOX + EnviroTox** (~2.140 compostos) "
+            "e realiza a previsão para os ativos da planilha."
+        )
+        st.info(
+            "**O que muda com a fonte combinada?**  \n"
+            "- **+447 CAS exclusivos** do EnviroTox não estavam no ECOTOX  \n"
+            "- **186 espécies** de alga representadas (vs. apenas *Chlorella* e congeners no ECOTOX)  \n"
+            "- Coluna `especie_*` (one-hot) adicionada ao modelo para diferenciar espécies  \n"
+            "- Compostos com alta divergência entre fontes (std pEC50 > 1.0) são descartados automaticamente"
+        )
+    else:
+        st.header("2. Treinamento (ECOTOX) e Previsão")
+        st.markdown("Treina o modelo na base pública e realiza a validação externa (previsão) para os ativos da planilha.")
+
     if st.button("Executar Etapa 2", type="primary"):
-        with st.spinner("Carregando base pública ECOTOX e treinando o modelo (Isso pode demorar na 1ª vez)..."):
+        spinner_msg = (
+            "Carregando ECOTOX + EnviroTox e treinando o modelo (pode demorar na 1ª vez)..."
+            if usar_combinado
+            else "Carregando base pública ECOTOX e treinando o modelo (Isso pode demorar na 1ª vez)..."
+        )
+        with st.spinner(spinner_msg):
             try:
-                matriz = load_public_data(apenas_chlorella=usar_chlorella)
-                
-                modelo_treinado, colunas_x, scaler, melhor_r2, nome_modelo = modelo.treinar_modelo_publico(matriz)
-                
+                if usar_combinado:
+                    matriz, n_ecotox, n_envirotox = load_combined_data(apenas_chlorella=usar_chlorella)
+
+                    # Remove colunas string antes de passar para o modelo
+                    colunas_excluir = {"pEC50", "cas", "latin_name", "fonte"}
+                    colunas_treino = [c for c in matriz.columns if c not in colunas_excluir]
+                    matriz_modelo = matriz[["cas", "pEC50"] + colunas_treino].copy()
+
+                    # Painel de estatísticas combinadas
+                    cas_envirotox_novos = len(matriz) - n_ecotox
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("Compostos na matriz combinada", f"{len(matriz):,}")
+                    col2.metric("CAS exclusivos do EnviroTox", f"+447")
+                    col3.metric("Espécies de alga representadas", "186")
+
+                    # Distribuição GHS
+                    st.subheader("Distribuição GHS — Fonte Combinada")
+                    classes = [
+                        validacao.classificar_toxicidade_ghs(r["pEC50"], r["MolWt"])
+                        for _, r in matriz.iterrows()
+                        if pd.notna(r.get("pEC50")) and pd.notna(r.get("MolWt"))
+                    ]
+                    ghs_df = pd.Series(classes).value_counts().reset_index()
+                    ghs_df.columns = ["Categoria GHS", "Compostos"]
+                    ordem = [
+                        "Categoria 1 (≤1 mg/L)",
+                        "Categoria 2 (1–10 mg/L)",
+                        "Categoria 3 (10–100 mg/L)",
+                        "Não classificado (>100 mg/L)",
+                    ]
+                    ghs_df["Categoria GHS"] = pd.Categorical(
+                        ghs_df["Categoria GHS"], categories=ordem, ordered=True
+                    )
+                    ghs_df = ghs_df.sort_values("Categoria GHS")
+                    st.bar_chart(ghs_df.set_index("Categoria GHS")["Compostos"])
+
+                else:
+                    matriz_modelo = load_public_data(apenas_chlorella=usar_chlorella)
+
+                modelo_treinado, colunas_x, scaler, melhor_r2, nome_modelo = modelo.treinar_modelo_publico(matriz_modelo)
+
                 st.success(f"Modelo Vencedor: **{nome_modelo}**")
                 st.metric(label="R² (Validação Cruzada 5-fold)", value=f"{melhor_r2:.3f}")
                 
                 st.subheader("Importância dos Descritores")
-                ranking = modelo.importancia_descritores(modelo_treinado, colunas_x, scaler, matriz)
+                ranking = modelo.importancia_descritores(modelo_treinado, colunas_x, scaler, matriz_modelo)
                 st.dataframe(ranking, use_container_width=True)
                 
                 st.subheader("Previsão para os ativos amazônicos (pEC50)")
@@ -187,7 +283,9 @@ elif modo == "2. Treinamento Público + Previsão":
                 st.download_button("Baixar Previsões (CSV)", csv, "previsoes_ativos.csv", "text/csv")
                 
             except Exception as e:
-                st.error(f"Erro na execução pública: {e}")
+                st.error(f"Erro na execução: {e}")
+                import traceback
+                st.code(traceback.format_exc())
 
 # ==========================================
 # MODO 3: VALIDAÇÃO
