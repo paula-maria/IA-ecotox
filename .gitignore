@@ -38,3 +38,5 @@ ecotox_ascii/
 !matriz_combinada_stats.csv
 
 matriz_confusao.pnglog_*.txt
+log_*.txt
+_inspect_sheets.py
