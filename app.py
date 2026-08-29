@@ -84,7 +84,8 @@ modo = st.sidebar.radio(
         "0. Como Funciona / Tutorial",
         "1. Dados Experimentais", 
         "2. Treinamento Público + Previsão", 
-        "3. Validação do Modelo"
+        "3. Validação do Modelo",
+        "4. Relatórios",
     ]
 )
 
@@ -155,7 +156,7 @@ Utilize o **Menu Lateral** para navegar pelas etapas do pipeline:
 ---
 ### Documentação Técnica
 """)
-    st.page_link("https://github.com/paula-maria/IA-ecotox", label="Repositório Oficial no GitHub", icon="🔗")
+    st.page_link("https://github.com/paula-maria/IA-ecotox", label="Repositório Oficial no GitHub", icon=":material/open_in_new:")
     
     try:
         with open("readme.md", "r", encoding="utf-8") as f:
@@ -392,3 +393,57 @@ elif modo == "3. Validação do Modelo":
                 
             except Exception as e:
                 st.error(f"Erro na validação: {e}")
+
+# ==========================================
+# MODO 4: RELATÓRIOS
+# ==========================================
+elif modo == "4. Relatórios":
+    st.header("Relatórios e Documentação")
+    st.markdown(
+        "Leitura completa dos documentos técnicos do projeto. "
+        "Use as abas para navegar entre os relatórios."
+    )
+
+    aba_validacao, aba_arquitetura, aba_readme = st.tabs([
+        "Validação Canônica (TCC)",
+        "Arquitetura do Projeto",
+        "README",
+    ])
+
+    def _render_md_com_imagens(caminho_md: str):
+        """Lê um arquivo .md e renderiza seu conteúdo, exibindo imagens inline."""
+        import re
+        try:
+            with open(caminho_md, "r", encoding="utf-8") as f:
+                conteudo = f.read()
+        except FileNotFoundError:
+            st.warning(f"Arquivo `{caminho_md}` não encontrado.")
+            return
+
+        # Divide o conteúdo por blocos de imagem markdown: ![alt](caminho)
+        partes = re.split(r'(!\[.*?\]\(.*?\))', conteudo)
+        pasta_base = os.path.dirname(os.path.abspath(caminho_md))
+
+        for parte in partes:
+            match = re.match(r'!\[(.*?)\]\((.+?)\)', parte)
+            if match:
+                alt, src = match.group(1), match.group(2)
+                # Suporte a caminhos relativos e absolutos
+                if not os.path.isabs(src):
+                    src = os.path.join(pasta_base, src)
+                if os.path.exists(src):
+                    st.image(src, caption=alt, use_container_width=True)
+                else:
+                    st.markdown(f"*[Imagem não encontrada: `{src}`]*")
+            else:
+                if parte.strip():
+                    st.markdown(parte, unsafe_allow_html=False)
+
+    with aba_validacao:
+        _render_md_com_imagens("relatorio_validacao_canonica_TCC.md")
+
+    with aba_arquitetura:
+        _render_md_com_imagens("architecture.md")
+
+    with aba_readme:
+        _render_md_com_imagens("readme.md")

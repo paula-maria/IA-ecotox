@@ -1,0 +1,297 @@
+[13:38:58] Explicit valence for atom # 0 B, 4, is greater than permitted
+======================================================================
+VALIDAÇÃO CANÔNICA  —  ECOTOX + EnviroTox  +  one-hot espécie
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+BLOCO 1 — Carregamento e combinação das fontes
+──────────────────────────────────────────────────────────────────────
+
+[ECOTOX] Carregando...
+[INFO] Filtro de espécie usado: todos os gêneros de algas verdes (Read-Across) — 95 espécie(s) encontrada(s).
+[INFO] Todos os 2019 CAS já estão no cache local (pubchem_cache.json).
+[INFO] 275 linhas sem SMILES resolvido (CAS não encontrado no PubChem).
+[AVISO] 844 linhas descartadas por unidade de concentração desconhecida (adicionar em _UNIT_TO_G_PER_L/_UNIT_TO_MOL_PER_L se necessário).
+[INFO] Matriz de treino montada: 13808 amostras brutas originais.
+[INFO] 207 compostos (CAS) descartados por alta divergência entre laboratórios/réplicas (desvio padrão pEC50 > 1.0). (3915 linhas afetadas).
+[INFO] Resultado final: 1720 compostos únicos (CAS) após deduplicação (8173 réplicas condensadas pela média).
+[INFO] pEC50 NaN após deduplicação: 0.
+  → ECOTOX: 1720 compostos únicos após deduplicação
+
+[EnviroTox] Carregando...
+[INFO] Carregando EnviroTox — conjunto amplo (algae)...
+       9048 linhas após filtro de endpoints.
+[INFO] Carregando EnviroTox — conjunto específico (Chlorella)...
+       430 linhas após filtro de endpoints.
+[INFO] Total bruto combinado: 9478 linhas | 1403 CAS únicos.
+[INFO] EnviroTox: 106 CAS sem SMILES já estão no cache.
+[AVISO] 1545 linhas descartadas por CAS sem SMILES resolvível.
+[INFO] EnviroTox carregado: 6722 linhas | 1378 CAS | 186 espécies.
+[INFO] EnviroTox: 1 linhas descartadas por SMILES inválido ou concentração ≤ 0.
+[INFO] Matriz EnviroTox: 6721 amostras brutas originais.
+[INFO] 157 compostos (CAS) descartados por alta divergência (std pEC50 > 1.0). (1192 linhas afetadas).
+[INFO] Resultado final: 1220 compostos únicos (CAS) após deduplicação (4309 réplicas condensadas pela média).
+[INFO] pEC50 NaN após deduplicação: 0.
+[INFO] Espécies na matriz EnviroTox (top 10):
+latin_name
+Raphidocelis subcapitata          748
+Chlorella pyrenoidosa              79
+Desmodesmus subspicatus            77
+Anabaena flos-aquae                69
+Chlorella vulgaris                 42
+Chlorella fusca var vacuolata      31
+Skeletonema costatum               18
+Dunaliella tertiolecta             16
+Scenedesmus acutus var. acutus     12
+Chlamydomonas reinhardtii          10
+  → EnviroTox: 1220 compostos únicos após deduplicação
+
+[Combinação] Executando combinar_fontes...
+
+[INFO] CAS no ECOTOX:     1720
+[INFO] CAS no EnviroTox:  1220
+[INFO] CAS compartilhados (ambas as fontes): 773
+[INFO] CAS exclusivos do ECOTOX:             947
+[INFO] CAS exclusivos do EnviroTox (novos):  447
+
+[AVISO] 27 CAS descartados por alta divergência inter-fonte (std pEC50 > 1.0):
+  CAS 50594677: std=3.11 | valores=[4.21 8.61]
+  CAS 25637994: std=3.09 | valores=[3.16 7.53]
+  CAS 110861: std=2.49 | valores=[2.84 6.36]
+  CAS 7727211: std=2.23 | valores=[4.6  1.45]
+  CAS 127526: std=2.16 | valores=[4.66 1.61]
+  CAS 69004031: std=2.12 | valores=[4.76 1.76]
+  CAS 84651: std=1.96 | valores=[4.   6.77]
+  CAS 95067: std=1.87 | valores=[4.35 7.  ]
+  CAS 111148: std=1.72 | valores=[5.94 3.5 ]
+  CAS 13684634: std=1.70 | valores=[4.36 6.77]
+  CAS 108054: std=1.55 | valores=[2.37 4.56]
+  CAS 1806264: std=1.50 | valores=[4.33 6.45]
+  CAS 92886: std=1.49 | valores=[2.87 4.98]
+  CAS 818611: std=1.41 | valores=[2.67 4.67]
+  CAS 110805: std=1.41 | valores=[0.95 2.95]
+  CAS 56235: std=1.41 | valores=[3.36 5.36]
+  CAS 7778747: std=1.39 | valores=[2.59 4.56]
+  CAS 144627: std=1.34 | valores=[2.06 3.96]
+  CAS 3567622: std=1.30 | valores=[7.64 5.81]
+  CAS 123308: std=1.29 | valores=[4.36 6.18]
+  CAS 1928434: std=1.16 | valores=[4.05 5.69]
+  CAS 140885: std=1.16 | valores=[2.6  4.25]
+  CAS 2439352: std=1.16 | valores=[4.95 6.59]
+  CAS 135886: std=1.13 | valores=[5.2 6.8]
+  CAS 64197: std=1.05 | valores=[1.18 2.66]
+  CAS 141322: std=1.03 | valores=[4.14 5.59]
+  CAS 110623: std=1.01 | valores=[2.54 3.96]
+
+[INFO] ===== MATRIZ COMBINADA =====
+[INFO] Linhas finais:         2140 compostos únicos (CAS)
+[INFO] CAS exclusivos ECOTOX: 947
+[INFO] CAS exclusivos EnviroTox (novos): 447
+[INFO] CAS de ambas as fontes (média usada): 746
+[INFO] CAS descartados por divergência inter-fonte: 27
+
+[INFO] Distribuição GHS na matriz combinada:
+Categoria 1 (≤1 mg/L)           677
+Categoria 2 (1–10 mg/L)         574
+Categoria 3 (10–100 mg/L)       535
+Não classificado (>100 mg/L)    354
+
+──────────────────────────────────────────────────────────────────────
+★ PARÂMETROS DA MATRIZ CANÔNICA (confirmar estes números)
+──────────────────────────────────────────────────────────────────────
+  n (compostos únicos)    : 2140
+  p (total descritores)   : 221
+    ↳ descritores RDKit/MACCS : 174
+    ↳ colunas especie_* (one-hot): 47
+    ↳ espécies: Achnanthidium_sp, Anabaena_cylindrica, Anabaena_flos-aquae, Anabaena_variabilis, Anacystis_aeruginosa, Ankistrodesmus_falcatus, Aphanothece_clathrata, Bellerochea_polymorpha...
+  pEC50 — min: 0.30  max: 12.31  média: 4.68  DP: 1.54
+
+──────────────────────────────────────────────────────────────────────
+BLOCO 2 — Qualidade dos dados (checar_qualidade_dados)
+──────────────────────────────────────────────────────────────────────
+=== Qualidade dos dados ===
+Linhas: 2140  |  Duplicatas: 0
+[ATENÇÃO] 21 outlier(s) em pEC50 fora de (0.58, 8.67) — investigar antes de treinar.
+[ATENÇÃO] Descritores sem variação (suspeitos): ['MACCS_1', 'MACCS_2']
+
+  Distribuição GHS no treino:
+    Categoria 1 (≤1 mg/L): 677 (31.6%)
+    Categoria 2 (1–10 mg/L): 574 (26.8%)
+    Categoria 3 (10–100 mg/L): 535 (25.0%)
+    Não classificado (>100 mg/L): 354 (16.5%)
+
+──────────────────────────────────────────────────────────────────────
+BLOCO 3 — GridSearchCV (RF + SVR, 5-fold)  ← modelo canônico único
+──────────────────────────────────────────────────────────────────────
+  → Otimizando RandomForest...
+     R² CV: 0.4508 | params: {'max_depth': 20, 'min_samples_leaf': 1, 'n_estimators': 300}
+  → Otimizando SVR...
+     R² CV: 0.4081 | params: {'C': 10, 'epsilon': 0.2, 'gamma': 'scale'}
+
+──────────────────────────────────────────────────────────────────────
+★ MÉTRICAS DO MODELO CANÔNICO (confirmar estes números)
+──────────────────────────────────────────────────────────────────────
+  Algoritmo vencedor : RandomForest
+  ★ RandomForest: R² CV = 0.4508 | {'max_depth': 20, 'min_samples_leaf': 1, 'n_estimators': 300}
+    SVR: R² CV = 0.4081 | {'C': 10, 'epsilon': 0.2, 'gamma': 'scale'}
+
+  R²   (cross_val_predict, 5-fold): 0.4544
+  RMSE (cross_val_predict, 5-fold): 1.1405  [unidades pEC50]
+
+  Comparação com runs anteriores:
+    Config A — ECOTOX só, 8 descritores básicos     :  R² não coletado
+    Config B — ECOTOX só, 174 desc, sem especie_*   :  R² = 0.4110  RMSE = 1.1750
+    Config C — Combinada, 174 desc + especie_* [ESTA]:  R² = 0.4544  RMSE = 1.1405
+    Δ R² (C − B) = +0.0434  ↑ melhora esperada pela adição das colunas especie_*
+
+──────────────────────────────────────────────────────────────────────
+BLOCO 4 — Y-Scrambling (30 repetições)
+──────────────────────────────────────────────────────────────────────
+  R² real (CV, RF 300 árvores) : 0.4530
+  R² embaralhado — média (30)  : -0.1230
+  R² embaralhado — máximo      : -0.0660
+  Δ R² (real − embaralhado)    : 0.5760
+  Passou no teste?             : ✅ SIM
+
+──────────────────────────────────────────────────────────────────────
+BLOCO 5 — Domínio de Aplicabilidade (Leverage) — h* recalculado
+──────────────────────────────────────────────────────────────────────
+
+  Parâmetros do leverage DESTA config:
+    p (descritores comuns treino ∩ ingredientes) = 174
+    n (compostos de treino)                       = 2140
+    h*  = 3(p+1)/n = 3×175/2140 = 0.245327
+
+  Nota: config B usava h*=0.3052 (p=174, n=1720). Esta config tem p=174, n=2140.
+
+  Dentro do domínio: 13/17 ingredientes
+  Fora do domínio  : 4/17 ingredientes
+
+  Ingrediente                                  Leverage       Status
+  ──────────────────────────────────────────────────────────────────
+  Ácido benzóico                                 0.0134     ✅ Dentro
+  p-Cimeno                                       0.0174     ✅ Dentro
+  Propanodiol                                    0.0445     ✅ Dentro
+  Glicerina (Glycerol)                           0.0562     ✅ Dentro
+  Alpha-felandreno                               0.0641     ✅ Dentro
+  Ácido cítrico                                  0.0667     ✅ Dentro
+  Terpinen-4-ol                                  0.0797     ✅ Dentro
+  Alpha-cadinol                                  0.0867     ✅ Dentro
+  Sorbitan Caprylate                             0.0937     ✅ Dentro
+  Copalol                                        0.1083     ✅ Dentro
+  Kolavelool                                     0.1232     ✅ Dentro
+  Alpha-humuleno                                 0.1421     ✅ Dentro
+  Decyl glucoside (Plantarem®)                   0.1768     ✅ Dentro
+  Álcool cariofileno                             0.5613     ⚠️  FORA
+  Beta-pineno                                    0.6165     ⚠️  FORA
+  Óxido de cariofileno                           0.6764     ⚠️  FORA
+  Acemannan (Aloe vera)                          0.8380     ⚠️  FORA
+
+★ COMPOSTOS FORA DO DOMÍNIO (para seção de limitações do TCC):
+    Acemannan (Aloe vera) — h = 0.8380  (h* = 0.2453)
+    Óxido de cariofileno — h = 0.6764  (h* = 0.2453)
+    Beta-pineno — h = 0.6165  (h* = 0.2453)
+    Álcool cariofileno — h = 0.5613  (h* = 0.2453)
+
+──────────────────────────────────────────────────────────────────────
+BLOCO 6 — Importância dos descritores (feature_importances_ nativo do RF)
+──────────────────────────────────────────────────────────────────────
+
+  Método: feature_importances_ (MDI nativo do Random Forest — soma exatamente 1,0)
+
+  Top 20 descritores:
+  #    Descritor                               Importância  Tipo
+  ──────────────────────────────────────────────────────────────────────
+  1    MolWt                                      0.257781  RDKit/MACCS
+  2    LogP                                       0.185858  RDKit/MACCS
+  3    TPSA                                       0.035473  RDKit/MACCS
+  4    NumRotatableBonds                          0.028626  RDKit/MACCS
+  5    MACCS_3                                    0.025842  RDKit/MACCS
+  6    MACCS_139                                  0.022861  RDKit/MACCS
+  7    MACCS_12                                   0.017526  RDKit/MACCS
+  8    NumHAcceptors                              0.015354  RDKit/MACCS
+  9    RingCount                                  0.012421  RDKit/MACCS
+  10   especie_Chlorella_vulgaris                 0.010645  especie_*
+  11   especie_Chlorella_fusca_var_vacuolata      0.009589  especie_*
+  12   MACCS_159                                  0.009245  RDKit/MACCS
+  13   MACCS_44                                   0.008416  RDKit/MACCS
+  14   NumHDonors                                 0.007937  RDKit/MACCS
+  15   MACCS_93                                   0.006180  RDKit/MACCS
+  16   MACCS_141                                  0.005512  RDKit/MACCS
+  17   MACCS_110                                  0.005464  RDKit/MACCS
+  18   AromaticRings                              0.005283  RDKit/MACCS
+  19   especie_Raphidocelis_subcapitata           0.005191  especie_*
+  20   MACCS_157                                  0.005165  RDKit/MACCS
+
+  Soma importâncias especie_*  : 0.0357
+  Soma importâncias RDKit/MACCS: 0.9643
+  Soma total                   : 1.000000  (≈1 ✅)
+
+──────────────────────────────────────────────────────────────────────
+BLOCO 7 — Matriz de confusão GHS + taxa de falso-seguro
+──────────────────────────────────────────────────────────────────────
+
+  Matriz de confusão (linhas = Observado | colunas = Previsto):
+
+Previsto                      Categoria 1 (≤1 mg/L)  Categoria 2 (1–10 mg/L)  Categoria 3 (10–100 mg/L)  Não classificado (>100 mg/L)
+Observado                                                                                                                            
+Categoria 1 (≤1 mg/L)                           329                      271                         75                             2
+Categoria 2 (1–10 mg/L)                          89                      323                        155                             7
+Categoria 3 (10–100 mg/L)                        34                      211                        263                            27
+Não classificado (>100 mg/L)                     10                       77                        196                            71
+
+  Acertos por classe (diagonal):
+    Categoria 1 (≤1 mg/L): 329/677 (48.6%)
+    Categoria 2 (1–10 mg/L): 323/574 (56.3%)
+    Categoria 3 (10–100 mg/L): 263/535 (49.2%)
+    Não classificado (>100 mg/L): 71/354 (20.1%)
+  Acurácia global: 46.1%
+
+★ TAXA DE FALSO-SEGURO (para seção de limitações do TCC):
+  Definição: Cat 1 real (≤1 mg/L) previsto como Cat 3 ou Não classificado
+  Cat 1 reais no conjunto de teste (CV): 677
+  Desses, previstos como Cat 3 ou NC   : 77
+  Taxa de falso-seguro                 : 77/677 = 11.4%
+
+  Gráficos salvos: matriz_confusao_canonico.png  |  analise_residuos_canonico.png
+
+──────────────────────────────────────────────────────────────────────
+BLOCO 8 — Previsão para os 17 ativos amazônicos (validação externa)
+──────────────────────────────────────────────────────────────────────
+
+  Ingrediente                                pEC50    EC50 mg/L Classe GHS                          Domínio
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Alpha-humuleno                              6.41         0.08 Categoria 1 (≤1 mg/L)               ✅
+  Acemannan (Aloe vera)                       6.01         1.65 Categoria 2 (1–10 mg/L)             ⚠️ fora
+  Óxido de cariofileno                        5.90         0.28 Categoria 1 (≤1 mg/L)               ⚠️ fora
+  Kolavelool                                  5.42          1.1 Categoria 2 (1–10 mg/L)             ✅
+  Álcool cariofileno                          5.39          0.9 Categoria 1 (≤1 mg/L)               ⚠️ fora
+  Copalol                                     5.36         1.28 Categoria 2 (1–10 mg/L)             ✅
+  Alpha-cadinol                               5.34         1.02 Categoria 2 (1–10 mg/L)             ✅
+  p-Cimeno                                    4.63         3.12 Categoria 2 (1–10 mg/L)             ✅
+  Alpha-felandreno                            4.53         4.06 Categoria 2 (1–10 mg/L)             ✅
+  Beta-pineno                                 4.38         5.63 Categoria 2 (1–10 mg/L)             ⚠️ fora
+  Terpinen-4-ol                               4.20         9.62 Categoria 2 (1–10 mg/L)             ✅
+  Propanodiol                                 3.90        23.54 Categoria 3 (10–100 mg/L)           ✅
+  Sorbitan Caprylate                          3.83        42.51 Categoria 3 (10–100 mg/L)           ✅
+  Decyl glucoside (Plantarem®)                3.76        49.77 Categoria 3 (10–100 mg/L)           ✅
+  Ácido benzóico                              3.59        31.12 Categoria 3 (10–100 mg/L)           ✅
+  Ácido cítrico                               3.11       148.06 Não classificado (>100 mg/L)        ✅
+  Glicerina (Glycerol)                        1.84      1335.69 Não classificado (>100 mg/L)        ✅
+
+======================================================================
+RESUMO EXECUTIVO — Números canônicos para o TCC
+======================================================================
+  Configuração          : ECOTOX + EnviroTox + one-hot espécie
+  n compostos           : 2140
+  p descritores totais  : 221  (RDKit/MACCS: 174  +  especie_*: 47)
+  Algoritmo             : RandomForest
+  R² (5-fold CV)        : 0.4544
+  RMSE (5-fold CV)      : 1.1405 pEC50
+  Y-scrambling          : R²_real=0.453  R²_emb=-0.123  Δ=0.576  PASSOU ✅
+  h* (leverage)         : 0.245327  (p=174, n=2140)
+  Ingredientes no domínio: 13/17
+  Ingredientes FORA:     ['Acemannan (Aloe vera)', 'Óxido de cariofileno', 'Beta-pineno', 'Álcool cariofileno']
+  Taxa de falso-seguro  : 77/677 = 11.4%
+  Tempo total           : 10.7 min
+======================================================================
