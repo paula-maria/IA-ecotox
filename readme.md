@@ -6,6 +6,21 @@ O projeto está organizado em módulos independentes para facilitar a manutenç�
 
 ---
 
+## 📌 Status Atual do Projeto (Agosto/2026)
+
+### ✅ Concluído
+* **Integração de Múltiplas Fontes:** Fusão e deduplicação (por número CAS) das bases ECOTOX (US-EPA) e EnviroTox (~2.140 compostos).
+* **Controle Taxonômico (One-Hot Encoding):** Implementação de descritores biológicos (`especie_*`), isolando a sensibilidade da alga e elevando o R² geral para **0,4544**.
+* **Correção de Extrapolação (Zero-Vector):** Correção metodológica forçando a variável `especie_Chlorella_vulgaris = 1` para as predições de ingredientes amazônicos.
+* **Validação Canônica (TCC):** Testes de *Y-Scrambling* (R² despenca de 0,45 para -0,12), cálculo do *Domínio de Aplicabilidade* (h-Matrix) e verificação de *Matriz de Confusão* GHS documentados em `relatorio_validacao_canonica_TCC.md`.
+* **Interface Web:** App em Streamlit operacional com relatórios preditivos em PDF.
+
+### 🚧 Pendente / Próximos Passos
+* **Fase 3 (Predição de Misturas):** Criar a tabela relacionando formulações cosméticas com a % de cada ingrediente, ativando assim a predição para formulações prontas.
+* **Correção Manual do SMILES:** Substituir o SMILES incorreto do *Decyl glucoside* (sal de nióbio) na planilha `Dados_QSAR_Saile_PJC2026.xlsx`.
+
+---
+
 # Instalação
 
 Requer **Python 3.10** ou superior.
@@ -214,7 +229,7 @@ Ao final da execução são apresentados:
 |---|---|
 | Amostras brutas | 13.808 |
 | Compostos únicos (CAS) após deduplicacão | 1.720 |
-| R² — validação cruzada 5-fold | a medir |
+| R² — validação cruzada 5-fold | 0,4110 |
 
 #### ECOTOX + EnviroTox combinados
 
@@ -231,7 +246,7 @@ Ao final da execução são apresentados:
 | Distribuição GHS — Cat. 3 (10–100 mg/L) | 535 |
 | Distribuição GHS — Não classificado (>100 mg/L) | 354 |
 
-> **Nota:** O Y-scrambling e o R² na fonte combinada devem ser medidos após o treino completo com `python3 main.py publico-combinado`.
+> **Nota:** O modelo combinado alcançou **R² de 0,4544**, e o Y-Scrambling obteve média de **-0,123**, confirmando a robustez estatística do algoritmo com a base expandida e controle taxonômico.
 
 ---
 
@@ -327,3 +342,12 @@ A estrutura esperada para a próxima etapa do projeto é semelhante a:
 | A1 | Decyl glucoside | 45 |
 
 Essa informação permitirá implementar a **Fase 3**, descrita em **`architecture.md`**, baseada em descritores moleculares ponderados pela composição das formulações.
+
+---
+
+# Referências
+
+- **ECOTOX Knowledgebase** — US EPA: https://cfpub.epa.gov/ecotox/
+- **EnviroTox Database**: https://envirotoxdatabase.org/
+- **PubChem PUG REST API** — NCBI: https://pubchemdocs.ncbi.nlm.nih.gov/pug-rest
+- Ferro, T. (2025). *Aprendizado de Máquina para predição de crescimento de Chlorella vulgaris*. UFAL. Disponível em: https://www.repositorio.ufal.br/handle/123456789/17415

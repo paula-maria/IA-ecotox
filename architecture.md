@@ -8,6 +8,12 @@ O projeto integra o **TCC/PJC 2026 da Universidade Federal do Amapá (UNIFAP)** 
 
 ---
 
+# Status do Projeto (Agosto/2026)
+**✅ Concluído:** Modelo treinado (ECOTOX + EnviroTox, R² 0,4544), controle taxonômico (*one-hot* para espécies) validado, correção metodológica de vetores nulos na predição resolvida, auditoria de validação (Y-Scrambling, h-Matrix, GHS) finalizada (vide `relatorio_validacao_canonica_TCC.md`). App Streamlit operacional.
+**🚧 Pendente:** Estruturar tabela de composição percentual de ingredientes para habilitar predição de formulações completas (Fase 3); corrigir o SMILES do ativo *Decyl glucoside* na planilha base.
+
+---
+
 # Visão Geral
 
 ```text
@@ -187,8 +193,7 @@ ECOTOX                          EnviroTox
 |---|---|
 | Amostras brutas | 13.808 |
 | Compostos únicos (CAS) após deduplicação | 1.720 |
-| R² — validação cruzada 5-fold | a medir |
-| Y-scrambling (R²_embaralhado médio) | a medir |
+| R² — validação cruzada 5-fold | 0,4110 |
 
 #### ECOTOX + EnviroTox combinados
 
@@ -203,6 +208,8 @@ ECOTOX                          EnviroTox
 | Distribuição GHS — Cat. 2 (1–10 mg/L) | 574 |
 | Distribuição GHS — Cat. 3 (10–100 mg/L) | 535 |
 | Distribuição GHS — Não classificado (>100 mg/L) | 354 |
+| **R² — validação cruzada 5-fold** | **0,4544** |
+| **Y-scrambling (R²_embaralhado médio)** | **-0,123** |
 
 ---
 
@@ -287,6 +294,8 @@ Elas apenas fornecem evidências sobre sua confiabilidade.
 O modelo produz uma predição contínua em **pEC50**.
 
 Para facilitar a interpretação ambiental, esses valores são convertidos em categorias de toxicidade aguda aquática do **Sistema Globalmente Harmonizado (GHS)**.
+
+![Matriz de Confusão](matriz_confusao.png)
 
 A matriz compara:
 

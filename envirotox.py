@@ -28,14 +28,14 @@ from ecotox import (
 )
 
 # Caminhos padrão — espelham a estrutura de pastas do projeto.
-DIR_ALGAE = Path("./algae")
-DIR_CHLORELLA = Path("./chlorella")
+DIR_ALGAE = Path(".")
+DIR_CHLORELLA = Path(".")
 
 # Arquivo canônico de cada conjunto (os 3 arquivos de cada pasta são idênticos).
-ALGAE_TEST_FILE = DIR_ALGAE / "test algae.xlsx"
-ALGAE_SUBSTANCE_FILE = DIR_ALGAE / "substance-algae.xlsx"
-CHLORELLA_TEST_FILE = DIR_CHLORELLA / "test-chlorella.xlsx"
-CHLORELLA_SUBSTANCE_FILE = DIR_CHLORELLA / "substance-chlorella.xlsx"
+ALGAE_TEST_FILE = DIR_ALGAE / "algae.xlsx"
+ALGAE_SUBSTANCE_FILE = DIR_ALGAE / "algae.xlsx"
+CHLORELLA_TEST_FILE = DIR_CHLORELLA / "chlorella.xlsx"
+CHLORELLA_SUBSTANCE_FILE = DIR_CHLORELLA / "chlorella.xlsx"
 
 # Sheet names dentro de cada Excel
 SHEET_TEST = "test"

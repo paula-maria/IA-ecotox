@@ -183,10 +183,12 @@ def validar_externamente(modelo, colunas_x, caminho_planilha: str, scaler=None) 
         desc = calcular_descritores(row["SMILES_canonical"])
         if desc is None:
             continue
-        # Preenche colunas ausentes com 0 (ex.: especie_* do EnviroTox não
-        # existem para compostos externos — semanticamente correto: nenhuma
-        # espécie associada → todas as flags one-hot valem 0).
+        # Preenche colunas ausentes (ex.: as de espécies do EnviroTox) com 0
         X_novo = pd.DataFrame([desc]).reindex(columns=colunas_x, fill_value=0)
+        # Define a espécie alvo explicitamente, pois foi a usada nos testes in vitro do projeto
+        if "especie_Chlorella_vulgaris" in colunas_x:
+            X_novo["especie_Chlorella_vulgaris"] = 1
+        
         if scaler is not None:
             X_novo_scaled = scaler.transform(X_novo)
         else:

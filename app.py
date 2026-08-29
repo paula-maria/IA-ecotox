@@ -286,9 +286,52 @@ elif modo == "2. Treinamento Público + Previsão":
                 previsao = modelo.validar_externamente(modelo_treinado, colunas_x, caminho_planilha, scaler)
                 st.dataframe(previsao, use_container_width=True)
                 
-                # Botão de download
+                # Botões de download
+                col_csv, col_pdf = st.columns(2)
+                
+                # Botão CSV
                 csv = previsao.to_csv(index=False).encode('utf-8')
-                st.download_button("Baixar Previsões (CSV)", csv, "previsoes_ativos.csv", "text/csv")
+                col_csv.download_button("Baixar Previsões (CSV)", csv, "previsoes_ativos.csv", "text/csv", use_container_width=True)
+                
+                # Gerar e baixar PDF
+                from fpdf import FPDF
+                import tempfile
+                
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", 'B', 16)
+                pdf.cell(0, 10, txt="Relatorio de Predicoes QSAR", ln=True, align='C')
+                pdf.set_font("Arial", '', 12)
+                pdf.cell(0, 10, txt=f"Modelo: {nome_modelo} (R2: {melhor_r2:.2f})", ln=True, align='C')
+                pdf.ln(10)
+                
+                pdf.set_font("Arial", 'B', 10)
+                pdf.cell(140, 10, "Ingrediente", 1)
+                pdf.cell(40, 10, "pEC50 Previsto", 1)
+                pdf.ln()
+                
+                pdf.set_font("Arial", '', 10)
+                for _, row in previsao.iterrows():
+                    # Trata caracteres não-latin1 para evitar erro no fpdf
+                    ing = str(row['Ingrediente']).encode('latin-1', 'replace').decode('latin-1')
+                    pec50 = f"{row['pEC50_previsto']:.3f}"
+                    pdf.cell(140, 10, ing, 1)
+                    pdf.cell(40, 10, pec50, 1)
+                    pdf.ln()
+                    
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    pdf.output(tmp.name)
+                    with open(tmp.name, "rb") as f:
+                        pdf_bytes = f.read()
+                os.remove(tmp.name)
+                
+                col_pdf.download_button(
+                    label="Baixar Relatório (PDF)",
+                    data=pdf_bytes,
+                    file_name="relatorio_previsoes.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
                 
             except Exception as e:
                 st.error(f"Erro na execução: {e}")
